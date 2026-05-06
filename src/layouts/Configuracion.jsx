@@ -16,6 +16,14 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
     proyectos: true,
     notas: false
   });
+
+  // Estados locales para los campos del perfil que no son globales en App.jsx
+  const [apellido, setApellido] = useState('');
+  const [correo, setCorreo] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [rut, setRut] = useState('');
+  const [ocupacion, setOcupacion] = useState('');
+  
   
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [newCardForm, setNewCardForm] = useState({ banco: '', tipo: 'Visa', numero: '', total: '' });
@@ -69,7 +77,16 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
   const handleSaveProfile = async () => {
     if (!auth.currentUser) return;
     try {
-      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { nombre: userName }, { merge: true });
+      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { 
+        nombre: userName,
+        apellido: apellido,
+        correo: correo,
+        telefono: telefono,
+        rut: rut,
+        ocupacion: ocupacion,
+        // No guardamos la dirección aquí, ya que no hay un campo para ella en el formulario actual
+        // Si agregas un campo de dirección, asegúrate de añadirlo aquí también.
+      }, { merge: true });
       alert("Perfil guardado correctamente.");
     } catch (error) {
       console.error("Error guardando perfil:", error);
@@ -203,27 +220,27 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
               </div>
               <div className="input-group">
                 <label>Apellido</label>
-                <input type="text" />
+                <input type="text" value={apellido} onChange={(e) => setApellido(e.target.value)} />
               </div>
               <div className="input-group">
                 <label>Correo Electrónico</label>
-                <input type="email" />
+                <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} />
               </div>
               <div className="input-group">
                 <label>Teléfono</label>
-                <input type="tel" />
+                <input type="tel" value={telefono} onChange={(e) => setTelefono(e.target.value)} />
               </div>
               <div className="input-group">
                 <label>RUT</label>
-                <input type="text" />
+                <input type="text" value={rut} onChange={(e) => setRut(e.target.value)} />
               </div>
               <div className="input-group">
                 <label>Ocupación</label>
-                <input type="text" />
+                <input type="text" value={ocupacion} onChange={(e) => setOcupacion(e.target.value)} />
               </div>
               <div className="input-group full-width">
                 <label>Dirección</label>
-                <input type="text" />
+                <input type="text" placeholder="Ej. Av. Principal 123, Ciudad" /> {/* Este campo no tiene estado aún */}
               </div>
             </div>
           <div className="form-actions">
@@ -473,7 +490,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
                 </div>
                 <div className="input-group">
                   <label>Últimos 4 dígitos</label>
-                  <input type="text" maxLength="4" value={newCardForm.numero} onChange={e => setNewCardForm({...newCardForm, numero: e.target.value})} placeholder="Ej. 4321" />
+                  <input type="text" value={newCardForm.numero} onChange={e => setNewCardForm({...newCardForm, numero: e.target.value})} placeholder="Ej. 1234567890123456" />
                 </div>
               </div>
               <div className="input-group">

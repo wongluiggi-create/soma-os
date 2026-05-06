@@ -47,6 +47,11 @@ function App() {
           setTarjetas(data.tarjetas || []);
           setPeso(data.peso || '');
           setEstatura(data.estatura || '');
+          // También cargamos los nuevos campos del perfil
+          // setApellido(data.apellido || ''); // Necesitarías pasar setApellido a App.jsx
+          // setCorreo(data.correo || '');
+          // setTelefono(data.telefono || '');
+          // setRut(data.rut || '');
         }
       } else {
         setUser(null);
