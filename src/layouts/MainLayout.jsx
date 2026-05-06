@@ -72,7 +72,7 @@ const MainLayout = () => {
         />
       )}
       {/* Menú Horizontal Superior */}
-      <header className="top-navbar">
+      <header className="top-navbar" style={{ position: 'relative', zIndex: 1000 }}>
         <div className="navbar-brand-group">
           <button className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -83,7 +83,7 @@ function App() {
           <Route path="notas" element={<Notas />} />
           <Route path="finanzas" element={<Finanzas categoriasIngreso={categoriasIngreso} categoriasEgreso={categoriasEgreso} tarjetas={tarjetas} setTarjetas={setTarjetas} />} />
           <Route path="habitos" element={<Habitos />} />
-          <Route path="cursos" element={<Cursos />} />
+          <Route path="cursos" element={<Cursos categoriasIngreso={categoriasIngreso} categoriasEgreso={categoriasEgreso} />} />
           <Route path="areas" element={<Areas />} />
           <Route path="proyectos" element={<Proyectos />} />
           <Route path="fitness" element={<Fitness peso={peso} estatura={estatura} />} />

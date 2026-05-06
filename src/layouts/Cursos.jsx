@@ -10,6 +10,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
   const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
 
   const [cursos, setCursos] = useState([]);
+  const todasCategorias = [...categoriasIngreso, ...categoriasEgreso];
 
   // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
   useEffect(() => {
@@ -413,13 +414,22 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                 <label>Título del Curso</label>
                 <input type="text" value={newCursoForm.titulo} onChange={e => setNewCursoForm(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Ej. Bootcamp de Diseño..." />
               </div>
-              <div className="input-group">
-                <label>Estado Inicial</label>
-                <select value={newCursoForm.estado} onChange={e => setNewCursoForm(prev => ({ ...prev, estado: e.target.value }))} className="modal-select">
-                  <option value="en progreso">En Curso</option>
-                  <option value="pausado">Pausado</option>
-                  <option value="completado">Completado</option>
-                </select>
+              <div className="fecha-inputs-row">
+                <div className="input-group">
+                  <label>Categoría</label>
+                  <select value={newCursoForm.categoria} onChange={e => setNewCursoForm(prev => ({ ...prev, categoria: e.target.value }))} className="modal-select">
+                    <option value="">Sin categoría</option>
+                    {todasCategorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Estado Inicial</label>
+                  <select value={newCursoForm.estado} onChange={e => setNewCursoForm(prev => ({ ...prev, estado: e.target.value }))} className="modal-select">
+                    <option value="en progreso">En Curso</option>
+                    <option value="pausado">Pausado</option>
+                    <option value="completado">Completado</option>
+                  </select>
+                </div>
               </div>
               <div className="fecha-inputs-row">
                 <div className="input-group">
