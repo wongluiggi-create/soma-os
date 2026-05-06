@@ -242,7 +242,15 @@ const Areas = () => {
                     <div key={subCategoria.id} className="sub-categoria-card">
                       <div className="sub-categoria-header" onClick={() => toggleExpand(subCategoria.id)}>
                         <div className="sub-categoria-header-title">
-                          <h4 className="sub-categoria-titulo">{subCategoria.titulo}</h4>
+                          <input
+                            type="text"
+                            className="sub-categoria-titulo"
+                            value={subCategoria.titulo}
+                            onChange={(e) => updateSubcatFieldLocal(area.id, subCategoria.id, 'titulo', e.target.value)}
+                            onBlur={(e) => saveSubcatField(area.id, subCategoria.id, 'titulo', e.target.value)}
+                            style={{ background: 'transparent', border: 'none', outline: 'none', padding: 0, color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}
+                            onClick={e => e.stopPropagation()} // Evita que se colapse al hacer clic en el input
+                          />
                           {(subCategoria.enlaces || []).filter(e => e.guardado).map(enlace => (
                             <a key={enlace.id} href={enlace.url} target="_blank" rel="noopener noreferrer" className="header-link-icon" title={enlace.titulo} onClick={e => e.stopPropagation()}>
                               📎

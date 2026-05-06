@@ -142,7 +142,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  max-width: 600px; /* Limita el ancho del formulario para que se vea centrado */
+  width: 100%;
+  max-width: 600px;
   margin-bottom: 2rem;
 }
 
@@ -331,14 +332,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 2rem;
-  align-items: flex-start;
+  justify-content: center;
 }
 
 .health-form {
-  flex: 1.5; /* Ocupa más espacio proporcionalmente que la columna de gráficas */
-  margin: 0 auto; /* Centra el formulario */
-  width: fit-content; /* Ajusta el ancho al contenido */
-  min-width: 280px;
+  width: 100%;
+  max-width: 600px;
+  margin: 0;
 }
 
 .health-graphics-container {

@@ -3,13 +3,14 @@ import { auth, db } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos visuales
 
-const Cursos = () => {
+const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
   const [filtro, setFiltro] = useState('todos');
   const [expandedSubcats, setExpandedSubcats] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
+  const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
 
   const [cursos, setCursos] = useState([]);
+  const todasCategorias = [...categoriasIngreso, ...categoriasEgreso];
 
   // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
   useEffect(() => {
@@ -47,12 +48,13 @@ const Cursos = () => {
       fechaInicio: newCursoForm.fechaInicio,
       fechaFin: newCursoForm.fechaFin,
       archivada: false,
+      categoria: newCursoForm.categoria,
       subCategorias: [],
       createdAt: new Date().toISOString()
     };
     await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'cursos'), nuevoCurso);
     setIsModalOpen(false);
-    setNewCursoForm({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
+    setNewCursoForm({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
   };
 
   const agregarSubCategoria = async (cursoId) => {
@@ -191,6 +193,13 @@ const Cursos = () => {
                 <div className="proyecto-card-header">
                   <h3>{curso.titulo}</h3>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {curso.categoria && (
+                      <span className="status-badge" style={{ backgroundColor: 'rgba(162, 146, 197, 0.1)', color: 'var(--soma-purple)', border: '1px solid rgba(162, 146, 197, 0.2)' }}>
+                        {curso.categoria}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <select 
                       className={`status-badge ${curso.estado.replace(' ', '-')}`}
                       value={curso.estado}
@@ -242,7 +251,15 @@ const Cursos = () => {
                     <div key={subCategoria.id} className="sub-categoria-card">
                       <div className="sub-categoria-header" onClick={() => toggleExpand(subCategoria.id)}>
                         <div className="sub-categoria-header-title">
-                          <h4 className="sub-categoria-titulo">{subCategoria.titulo}</h4>
+                          <input
+                            type="text"
+                            className="sub-categoria-titulo"
+                            value={subCategoria.titulo}
+                            onChange={(e) => updateSubcatFieldLocal(curso.id, subCategoria.id, 'titulo', e.target.value)}
+                            onBlur={(e) => saveSubcatField(curso.id, subCategoria.id, 'titulo', e.target.value)}
+                            style={{ background: 'transparent', border: 'none', outline: 'none', padding: 0, color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit' }}
+                            onClick={e => e.stopPropagation()} // Evita que se colapse al hacer clic en el input
+                          />
                           {(subCategoria.enlaces || []).filter(e => e.guardado).map(enlace => (
                             <a key={enlace.id} href={enlace.url} target="_blank" rel="noopener noreferrer" className="header-link-icon" title={enlace.titulo} onClick={e => e.stopPropagation()}>
                               📎

@@ -59,6 +59,18 @@ const MainLayout = () => {
 
   return (
     <div className="layout-container">
+      {/* Capa para cerrar menú móvil al hacer clic fuera */}
+      {isMobileMenuOpen && (
+        <div 
+          onClick={() => setIsMobileMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 998
+          }}
+        />
+      )}
       {/* Menú Horizontal Superior */}
       <header className="top-navbar">
         <div className="navbar-brand-group">
