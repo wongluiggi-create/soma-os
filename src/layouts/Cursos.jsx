@@ -10,7 +10,6 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
   const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
 
   const [cursos, setCursos] = useState([]);
-  const todasCategorias = [...categoriasIngreso, ...categoriasEgreso];
 
   // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
   useEffect(() => {
