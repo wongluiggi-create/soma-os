@@ -2,7 +2,7 @@
   "name": "soma-os",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://TU_USUARIO_DE_GITHUB.github.io/soma-os/",
+  "homepage": "https://wongluiggi-create.github.io/soma-os/",
   "type": "module",
   "scripts": {
     "dev": "vite",

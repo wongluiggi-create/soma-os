@@ -20,6 +20,17 @@ function App() {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
+  const [userName, setUserName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+
+  const [categoriasIngreso, setCategoriasIngreso] = useState([]);
+  const [categoriasEgreso, setCategoriasEgreso] = useState([]);
+
+  const [tarjetas, setTarjetas] = useState([]);
+
+  const [peso, setPeso] = useState('');
+  const [estatura, setEstatura] = useState('');
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -52,17 +63,6 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
-
-  const [userName, setUserName] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-
-  const [categoriasIngreso, setCategoriasIngreso] = useState([]);
-  const [categoriasEgreso, setCategoriasEgreso] = useState([]);
-
-  const [tarjetas, setTarjetas] = useState([]);
-
-  const [peso, setPeso] = useState('');
-  const [estatura, setEstatura] = useState('');
 
   // Pantalla de carga mientras Firebase verifica si estás logueado
   if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)', color: 'var(--soma-yellow)' }}>Cargando Soma OS...</div>;

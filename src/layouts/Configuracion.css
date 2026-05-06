@@ -524,6 +524,10 @@
   .health-graphics-container {
     min-width: 100%; /* Las gráficas de salud se apilan y ocupan todo el ancho en móviles */
   }
+
+  .form-actions {
+    justify-content: center; /* Centra los botones de Guardar en pantallas pequeñas */
+  }
 }
 
 /* --- NOTIFICACIONES SWITCH --- */

@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react';
 import { storage, db, auth } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import './Configuracion.css';
 
-const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], peso, setPeso, estatura, setEstatura }) => {
+const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], setTarjetas, peso, setPeso, estatura, setEstatura }) => {
   const [activeTab, setActiveTab] = useState('perfil');
   const [newCatIngreso, setNewCatIngreso] = useState('');
   const [newCatEgreso, setNewCatEgreso] = useState('');
@@ -16,6 +16,9 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
     proyectos: true,
     notas: false
   });
+  
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [newCardForm, setNewCardForm] = useState({ banco: '', tipo: 'Visa', numero: '', total: '' });
 
   const fileInputRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,7 +55,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
       
       // Guardar URL del avatar en Firestore
       if (auth.currentUser) {
-        await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { avatarUrl: url });
+        await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { avatarUrl: url }, { merge: true });
       }
     } catch (error) {
       console.error("Error subiendo el avatar:", error);
@@ -66,7 +69,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
   const handleSaveProfile = async () => {
     if (!auth.currentUser) return;
     try {
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { nombre: userName });
+      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { nombre: userName }, { merge: true });
       alert("Perfil guardado correctamente.");
     } catch (error) {
       console.error("Error guardando perfil:", error);
@@ -77,7 +80,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
   const handleSaveHealth = async () => {
     if (!auth.currentUser) return;
     try {
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { peso, estatura });
+      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { peso, estatura }, { merge: true });
       alert("Datos de salud guardados correctamente.");
     } catch (error) {
       console.error("Error guardando salud:", error);
@@ -90,7 +93,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
       const nuevas = [...categoriasIngreso, newCatIngreso];
       setCategoriasIngreso(nuevas);
       setNewCatIngreso('');
-      if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas });
+      if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas }, { merge: true });
     }
   };
 
@@ -98,7 +101,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
     if (!setCategoriasIngreso) return;
     const nuevas = categoriasIngreso.filter(c => c !== cat);
     setCategoriasIngreso(nuevas);
-    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas });
+    if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas }, { merge: true });
   };
 
   const handleAddCatEgreso = async () => {
@@ -106,7 +109,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
       const nuevas = [...categoriasEgreso, newCatEgreso];
       setCategoriasEgreso(nuevas);
       setNewCatEgreso('');
-      if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas });
+      if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas }, { merge: true });
     }
   };
 
@@ -114,7 +117,30 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
     if (!setCategoriasEgreso) return;
     const nuevas = categoriasEgreso.filter(c => c !== cat);
     setCategoriasEgreso(nuevas);
-    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas });
+    if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas }, { merge: true });
+  };
+
+  const handleAddCard = async () => {
+    if (!newCardForm.banco || !newCardForm.numero || !newCardForm.total) return alert("Llena todos los campos requeridos.");
+    if (!auth.currentUser) return;
+    
+    const nuevaTarjeta = {
+      id: Date.now(),
+      banco: newCardForm.banco,
+      tipo: newCardForm.tipo,
+      numero: newCardForm.numero,
+      utilizado: 0,
+      total: parseFloat(newCardForm.total)
+    };
+    
+    const nuevasTarjetas = [...tarjetas, nuevaTarjeta];
+    if (setTarjetas) setTarjetas(nuevasTarjetas);
+    
+    try {
+      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { tarjetas: nuevasTarjetas }, { merge: true });
+      setIsCardModalOpen(false);
+      setNewCardForm({ banco: '', tipo: 'Visa', numero: '', total: '' });
+    } catch (error) { console.error("Error guardando tarjeta:", error); }
   };
 
   return (
@@ -210,7 +236,7 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
           <div className="settings-card">
             <div className="card-header-flex">
               <h2>Tarjetas Registradas</h2>
-              <button className="btn-add">+ Añadir Tarjeta</button>
+              <button className="btn-add" onClick={() => setIsCardModalOpen(true)}>+ Añadir Tarjeta</button>
             </div>
             <p className="section-description">Administra tus métodos de pago (solo se muestra información general y últimos 4 dígitos).</p>
             
@@ -425,6 +451,43 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
           </div>
         )}
       </section>
+
+      {/* Modal para Nueva Tarjeta */}
+      {isCardModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Añadir Tarjeta Bancaria</h2>
+            <div className="modal-form">
+              <div className="input-group">
+                <label>Nombre del Banco</label>
+                <input type="text" value={newCardForm.banco} onChange={e => setNewCardForm({...newCardForm, banco: e.target.value})} placeholder="Ej. Banco Estado..." />
+              </div>
+              <div className="fecha-inputs-row">
+                <div className="input-group">
+                  <label>Tipo</label>
+                  <select value={newCardForm.tipo} onChange={e => setNewCardForm({...newCardForm, tipo: e.target.value})} className="modal-select">
+                    <option value="Visa">Visa</option>
+                    <option value="Mastercard">Mastercard</option>
+                    <option value="AMEX">AMEX</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Últimos 4 dígitos</label>
+                  <input type="text" maxLength="4" value={newCardForm.numero} onChange={e => setNewCardForm({...newCardForm, numero: e.target.value})} placeholder="Ej. 4321" />
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Límite / Cupo Total Aprobado</label>
+                <input type="number" value={newCardForm.total} onChange={e => setNewCardForm({...newCardForm, total: e.target.value})} placeholder="0.00" />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setIsCardModalOpen(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={handleAddCard}>Guardar Tarjeta</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

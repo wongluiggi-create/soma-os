@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import './Proyectos.css';
 import './Finanzas.css';
 import './Home.css';
@@ -46,12 +48,24 @@ const Home = ({ userName }) => {
   // Simulamos datos de actividad (7 días x 53 semanas = 371 bloques)
   const [activityGraph, setActivityGraph] = useState(mockActivityGraph);
 
-  const toggleActivityLevel = (index) => {
-    setActivityGraph(prev => {
-      const newGraph = [...prev];
-      newGraph[index] = (newGraph[index] + 1) % 3; // Cicla entre 0, 1 y 2
-      return newGraph;
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const unsubscribe = onSnapshot(doc(db, 'usuarios', auth.currentUser.uid), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().activityGraph) {
+        setActivityGraph(docSnap.data().activityGraph);
+      }
     });
+    return () => unsubscribe();
+  }, []);
+
+  const toggleActivityLevel = async (index) => {
+    const newGraph = [...activityGraph];
+    newGraph[index] = (newGraph[index] + 1) % 3; // Cicla entre 0, 1 y 2
+    setActivityGraph(newGraph); // Actualización visual instantánea
+    
+    if (auth.currentUser) {
+      await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { activityGraph: newGraph }, { merge: true });
+    }
   };
 
   // --- CÁLCULO DEL PORCENTAJE GENERAL DE ACTIVIDAD ---

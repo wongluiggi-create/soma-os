@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
-import { storage } from '../firebase';
+import { useState, useRef, useEffect } from 'react';
+import { storage, db, auth } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos principales del sistema
 import './Finanzas.css'; // Reutilizamos el grid de Finanzas
 import './Fitness.css'; // Estilos específicos de rutinas y nutrición
@@ -9,6 +10,8 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
   const [activeRutinaId, setActiveRutinaId] = useState(null);
   const [newExerciseForm, setNewExerciseForm] = useState({ nombre: '', series: 4, reps: '10', peso: '' });
+  const [isRutinaModalOpen, setIsRutinaModalOpen] = useState(false);
+  const [newRutinaForm, setNewRutinaForm] = useState({ titulo: '', estado: 'activo' });
   const [isComidaModalOpen, setIsComidaModalOpen] = useState(false);
   const [newComidaForm, setNewComidaForm] = useState({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
 
@@ -41,6 +44,24 @@ const Fitness = ({ peso = '', estatura = '' }) => {
 
   // --- ALIMENTACIÓN ---
   const [comidas, setComidas] = useState([]);
+
+  // --- CONEXIÓN A FIREBASE PARA RUTINAS Y COMIDAS ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    
+    const qRutinas = query(collection(db, 'usuarios', uid, 'rutinas'), orderBy('createdAt', 'desc'));
+    const unRutinas = onSnapshot(qRutinas, (snap) => {
+      setRutinas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const qComidas = query(collection(db, 'usuarios', uid, 'comidas'), orderBy('createdAt', 'asc'));
+    const unComidas = onSnapshot(qComidas, (snap) => {
+      setComidas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unRutinas(); unComidas(); };
+  }, []);
 
   // --- GRÁFICO DE ACTIVIDAD (Datos Simulados Semanales) ---
   const activityData = [0, 0, 0, 0, 0, 0, 0];
@@ -88,45 +109,45 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   else if (rachaDiaria >= 7) { rachaIcon = '⚡'; rachaClass = 'racha-high'; }
 
   // --- FUNCIONES RUTINAS ---
-  const toggleSerie = (rutinaId, ejercicioId, serieIndex) => {
-    setRutinas(prev => prev.map(r => {
-      if (r.id === rutinaId) {
-        return {
-          ...r,
-          ejercicios: r.ejercicios.map(e => {
-            if (e.id === ejercicioId) {
-              const nuevoEstado = [...e.seriesEstado];
-              nuevoEstado[serieIndex] = !nuevoEstado[serieIndex];
-              return { ...e, seriesEstado: nuevoEstado };
-            }
-            return e;
-          })
-        };
-      }
-      return r;
-    }));
+  const updateRutinaLocalAndDB = async (rutinaId, newData) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'rutinas', rutinaId), newData);
   };
 
-  const registrarEntrenamiento = (rutinaId) => {
-    setRutinas(prev => prev.map(r => {
-      if (r.id === rutinaId) {
-        const totalSeries = r.ejercicios.reduce((acc, e) => acc + e.series, 0);
-        const seriesCompletadas = r.ejercicios.reduce((acc, e) => acc + e.seriesEstado.filter(s => s).length, 0);
-        const nuevoRegistro = { id: Date.now(), fecha: new Date().toLocaleDateString(), detalle: `${seriesCompletadas}/${totalSeries} series completadas` };
-        const ejerciciosReseteados = r.ejercicios.map(e => ({ ...e, seriesEstado: Array(e.series).fill(false) }));
-        return { ...r, historial: [nuevoRegistro, ...(r.historial || [])], ejercicios: ejerciciosReseteados };
-      }
-      return r;
-    }));
+  const toggleSerie = async (rutinaId, ejercicioId, serieIndex) => {
+    const rutina = rutinas.find(r => r.id === rutinaId);
+    if (rutina && auth.currentUser) {
+      const nuevosEjercicios = rutina.ejercicios.map(e => {
+        if (e.id === ejercicioId) {
+          const nuevoEstado = [...e.seriesEstado];
+          nuevoEstado[serieIndex] = !nuevoEstado[serieIndex];
+          return { ...e, seriesEstado: nuevoEstado };
+        }
+        return e;
+      });
+      await updateRutinaLocalAndDB(rutinaId, { ejercicios: nuevosEjercicios });
+    }
   };
 
-  const eliminarRegistroHistorial = (rutinaId, registroId) => {
-    setRutinas(prev => prev.map(r => {
-      if (r.id === rutinaId) {
-        return { ...r, historial: r.historial.filter(h => h.id !== registroId) };
-      }
-      return r;
-    }));
+  const registrarEntrenamiento = async (rutinaId) => {
+    const rutina = rutinas.find(r => r.id === rutinaId);
+    if (rutina && auth.currentUser) {
+      const totalSeries = rutina.ejercicios.reduce((acc, e) => acc + e.series, 0);
+      const seriesCompletadas = rutina.ejercicios.reduce((acc, e) => acc + e.seriesEstado.filter(s => s).length, 0);
+      const nuevoRegistro = { id: Date.now(), fecha: new Date().toLocaleDateString(), detalle: `${seriesCompletadas}/${totalSeries} series completadas` };
+      const ejerciciosReseteados = rutina.ejercicios.map(e => ({ ...e, seriesEstado: Array(e.series).fill(false) }));
+      
+      await updateRutinaLocalAndDB(rutinaId, { 
+        historial: [nuevoRegistro, ...(rutina.historial || [])], 
+        ejercicios: ejerciciosReseteados 
+      });
+    }
+  };
+
+  const eliminarRegistroHistorial = async (rutinaId, registroId) => {
+    const rutina = rutinas.find(r => r.id === rutinaId);
+    if (rutina && auth.currentUser) {
+      await updateRutinaLocalAndDB(rutinaId, { historial: rutina.historial.filter(h => h.id !== registroId) });
+    }
   };
 
   const handleImageUpload = async (e) => {
@@ -139,13 +160,13 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
 
-      setRutinas(prev => prev.map(r => r.id === targetEjercicio.rutinaId ? {
-        ...r,
-        ejercicios: r.ejercicios.map(ej => ej.id === targetEjercicio.ejercicioId ? {
-          ...ej,
-          imagenes: [...(ej.imagenes || []), url].slice(0, 2)
-        } : ej)
-      } : r));
+      const rutina = rutinas.find(r => r.id === targetEjercicio.rutinaId);
+      if(rutina && auth.currentUser) {
+        const nuevosEjercicios = rutina.ejercicios.map(ej => ej.id === targetEjercicio.ejercicioId ? {
+            ...ej, imagenes: [...(ej.imagenes || []), url].slice(0, 2)
+        } : ej);
+        await updateRutinaLocalAndDB(rutina.id, { ejercicios: nuevosEjercicios });
+      }
     } catch (error) {
       console.error("Error subiendo la imagen:", error);
       alert("Hubo un error subiendo la imagen. Verifica las reglas de Firebase Storage.");
@@ -164,37 +185,38 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   };
 
   // --- GESTIÓN DE CATEGORÍAS DE RUTINA ---
-  const agregarCategoriaRutina = (rutinaId) => {
+  const agregarCategoriaRutina = async (rutinaId) => {
     const cat = prompt('Añadir categoría (Ej. Casa, Gym, Cardio, Kettlebell):');
-    if (cat && cat.trim() !== '') {
-      setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, categorias: [...(r.categorias || []), cat] } : r));
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (cat && cat.trim() !== '' && r && auth.currentUser) {
+      await updateRutinaLocalAndDB(rutinaId, { categorias: [...(r.categorias || []), cat] });
     }
   };
 
-  const eliminarCategoriaRutina = (rutinaId, catIndex) => {
-    setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, categorias: r.categorias.filter((_, i) => i !== catIndex) } : r));
+  const eliminarCategoriaRutina = async (rutinaId, catIndex) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) {
+      await updateRutinaLocalAndDB(rutinaId, { categorias: r.categorias.filter((_, i) => i !== catIndex) });
+    }
   };
 
   // --- VINCULAR RUTINAS AL CALENDARIO ---
-  const toggleDiaRutina = (rutinaId, dayIndex) => {
-    setRutinas(prev => prev.map(r => {
-      if (r.id === rutinaId) {
-        const asignados = r.diasAsignados || [];
-        const nuevosDias = asignados.includes(dayIndex)
-          ? asignados.filter(d => d !== dayIndex)
-          : [...asignados, dayIndex].sort();
-        return { ...r, diasAsignados: nuevosDias };
-      }
-      return r;
-    }));
+  const toggleDiaRutina = async (rutinaId, dayIndex) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) {
+      const asignados = r.diasAsignados || [];
+      const nuevosDias = asignados.includes(dayIndex) ? asignados.filter(d => d !== dayIndex) : [...asignados, dayIndex].sort();
+      await updateRutinaLocalAndDB(rutinaId, { diasAsignados: nuevosDias });
+    }
   };
 
-  const toggleArchivarRutina = (rutinaId) => {
-    setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, archivada: !r.archivada } : r));
+  const toggleArchivarRutina = async (rutinaId) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) await updateRutinaLocalAndDB(rutinaId, { archivada: !r.archivada });
   };
 
-  const eliminarRutina = (rutinaId) => {
-    setRutinas(prev => prev.filter(r => r.id !== rutinaId));
+  const eliminarRutina = async (rutinaId) => {
+    if (auth.currentUser) await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'rutinas', rutinaId));
   };
 
   const rutinasActivas = rutinas.filter(r => !r.archivada);
@@ -206,46 +228,79 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     setIsExerciseModalOpen(true);
   };
 
-  const handleCreateExercise = () => {
+  const handleCreateRutina = async () => {
+    if (!newRutinaForm.titulo) return alert('El título es obligatorio');
+    if (!auth.currentUser) return;
+
+    const nuevaRutina = {
+      titulo: newRutinaForm.titulo,
+      estado: newRutinaForm.estado,
+      archivada: false,
+      diasAsignados: [],
+      categorias: [],
+      ejercicios: [],
+      historial: [],
+      enlaces: [],
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'rutinas'), nuevaRutina);
+      setIsRutinaModalOpen(false);
+      setNewRutinaForm({ titulo: '', estado: 'activo' });
+    } catch (error) { console.error(error); }
+  };
+
+  const handleCreateExercise = async () => {
     if (!newExerciseForm.nombre) return alert('El nombre del ejercicio es obligatorio');
+    if (!auth.currentUser) return;
     const numSeries = parseInt(newExerciseForm.series) || 1;
     
-    setRutinas(prev => prev.map(r => r.id === activeRutinaId ? {
-      ...r,
-      ejercicios: [...r.ejercicios, {
-        id: Date.now(), nombre: newExerciseForm.nombre, series: numSeries, reps: newExerciseForm.reps, peso: newExerciseForm.peso,
-        seriesEstado: Array(numSeries).fill(false), imagenes: []
-      }]
-    } : r));
+    const rutina = rutinas.find(r => r.id === activeRutinaId);
+    if(rutina) {
+      await updateRutinaLocalAndDB(activeRutinaId, {
+        ejercicios: [...rutina.ejercicios, {
+          id: Date.now(), nombre: newExerciseForm.nombre, series: numSeries, reps: newExerciseForm.reps, peso: newExerciseForm.peso,
+          seriesEstado: Array(numSeries).fill(false), imagenes: []
+        }]
+      });
+    }
     
     setIsExerciseModalOpen(false);
     setNewExerciseForm({ nombre: '', series: 4, reps: '10', peso: '' });
   };
 
-  const agregarEnlaceRutina = (rutinaId) => {
-    setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, enlaces: [...(r.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : r));
+  const agregarEnlaceRutina = async (rutinaId) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) await updateRutinaLocalAndDB(rutinaId, { enlaces: [...(r.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] });
   };
 
-  const updateEnlaceRutina = (rutinaId, enlaceId, field, value) => {
-    setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, enlaces: r.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : r));
+  const updateEnlaceRutina = async (rutinaId, enlaceId, field, value) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) await updateRutinaLocalAndDB(rutinaId, { enlaces: r.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) });
   };
 
-  const eliminarEnlaceRutina = (rutinaId, enlaceId) => {
-    setRutinas(prev => prev.map(r => r.id === rutinaId ? { ...r, enlaces: r.enlaces.filter(e => e.id !== enlaceId) } : r));
+  const eliminarEnlaceRutina = async (rutinaId, enlaceId) => {
+    const r = rutinas.find(x => x.id === rutinaId);
+    if (r && auth.currentUser) await updateRutinaLocalAndDB(rutinaId, { enlaces: r.enlaces.filter(e => e.id !== enlaceId) });
   };
 
-  const handleCreateComida = () => {
+  const handleCreateComida = async () => {
     if (!newComidaForm.tipo || !newComidaForm.calorias) return alert('El tipo de comida y las calorías son obligatorias.');
-    setComidas([...comidas, {
-      id: Date.now(),
+    if (!auth.currentUser) return;
+
+    const nuevaComida = {
       tipo: newComidaForm.tipo,
       hora: newComidaForm.hora || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       descripcion: newComidaForm.descripcion || 'Sin descripción',
       calorias: parseInt(newComidaForm.calorias) || 0,
       proteina: parseInt(newComidaForm.proteina) || 0,
       carbs: parseInt(newComidaForm.carbs) || 0,
-      grasas: parseInt(newComidaForm.grasas) || 0
-    }]);
+      grasas: parseInt(newComidaForm.grasas) || 0,
+      createdAt: new Date().toISOString()
+    };
+
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'comidas'), nuevaComida);
     setIsComidaModalOpen(false);
     setNewComidaForm({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
   };
@@ -303,8 +358,9 @@ const Fitness = ({ peso = '', estatura = '' }) => {
             </div>
           </div>
 
-          <div className="proyectos-header">
-            <h2 className="page-title" style={{ fontSize: '1.5rem', color: 'var(--text-secondary)' }}>Rutinas de Entrenamiento</h2>
+          <div className="proyectos-header" style={{ alignItems: 'center' }}>
+            <h2 className="page-title" style={{ fontSize: '1.5rem', color: 'var(--text-secondary)', margin: 0 }}>Rutinas de Entrenamiento</h2>
+            <button className="btn-add-subcat" style={{ padding: '0.4rem 1rem', marginTop: 0 }} onClick={() => setIsRutinaModalOpen(true)}>+ Nueva Rutina</button>
           </div>
           
           <div className="proyectos-grid">
@@ -646,6 +702,32 @@ const Fitness = ({ peso = '', estatura = '' }) => {
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setIsExerciseModalOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={handleCreateExercise}>Guardar Ejercicio</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL NUEVA RUTINA --- */}
+      {isRutinaModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Crear Nueva Rutina</h2>
+            <div className="modal-form">
+              <div className="input-group">
+                <label>Nombre de la Rutina</label>
+                <input type="text" value={newRutinaForm.titulo} onChange={e => setNewRutinaForm({...newRutinaForm, titulo: e.target.value})} placeholder="Ej. Día de Empuje, Full Body..." />
+              </div>
+              <div className="input-group">
+                <label>Estado Inicial</label>
+                <select value={newRutinaForm.estado} onChange={e => setNewRutinaForm({...newRutinaForm, estado: e.target.value})} className="modal-select">
+                  <option value="activo">Activo (En progreso)</option>
+                  <option value="descanso">En Descanso (Pausado)</option>
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setIsRutinaModalOpen(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={handleCreateRutina}>Guardar Rutina</button>
             </div>
           </div>
         </div>

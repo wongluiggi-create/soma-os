@@ -720,4 +720,8 @@ select.status-badge option {
   .page-title {
     font-size: 1.5rem;
   }
+
+  .fecha-inputs-row {
+    grid-template-columns: 1fr; /* Colapsa las filas del formulario en celulares para evitar desbordamiento */
+  }
 }

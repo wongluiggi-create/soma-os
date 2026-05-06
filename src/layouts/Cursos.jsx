@@ -310,7 +310,7 @@ const Cursos = () => {
                                 <li key={tarea.id} className="tarea-item">
                                   <label className="tarea-label">
                                     <input type="checkbox" checked={tarea.completada} onChange={() => toggleTarea(curso.id, subCategoria.id, tarea.id)} />
-                                    <input type="text" className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`} value={tarea.texto} placeholder="Escribe una tarea..." onChange={(e) => updateTareaTexto(curso.id, subCategoria.id, tarea.id, e.target.value)} />
+                                    <input type="text" className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`} value={tarea.texto} placeholder="Escribe una tarea..." onChange={(e) => updateTareaTextoLocal(curso.id, subCategoria.id, tarea.id, e.target.value)} onBlur={(e) => saveTareaTexto(curso.id, subCategoria.id, tarea.id, e.target.value)} />
                                   </label>
                                 </li>
                               ))}
@@ -321,12 +321,12 @@ const Cursos = () => {
                             <div className="proyecto-fechas-modern">
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Inicia</span>
-                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaInicio || ''} onChange={(e) => updateSubcatField(curso.id, subCategoria.id, 'fechaInicio', e.target.value)} />
+                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaInicio || ''} onChange={(e) => saveSubcatField(curso.id, subCategoria.id, 'fechaInicio', e.target.value)} />
                               </div>
                               <span className="fecha-separator">→</span>
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Fin</span>
-                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => updateSubcatField(curso.id, subCategoria.id, 'fechaFin', e.target.value)} />
+                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => saveSubcatField(curso.id, subCategoria.id, 'fechaFin', e.target.value)} />
                               </div>
                             </div>
                           </div>
