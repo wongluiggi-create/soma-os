@@ -1,0 +1,82 @@
+/* Importación de la fuente Grift temporalmente comentada hasta tener los archivos reales
+   Descomenta esto cuando pongas los archivos .woff y .woff2 en src/assets/fonts/ */
+/* @font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/Grift-Light.woff2') format('woff2'),
+       url('./assets/fonts/Grift-Light.woff') format('woff');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/Grift-Regular.woff2') format('woff2'),
+       url('./assets/fonts/Grift-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/Grift-Bold.woff2') format('woff2'),
+       url('./assets/fonts/Grift-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+} */
+
+:root {
+  /* Paleta de Soma OS */
+  --soma-dark: #32373b;
+  --soma-orange: #f07f12;
+  --soma-purple: #a292c5;
+  --soma-yellow: #fdc815;
+  
+  /* Tonos extra para fondos y textos */
+  --bg-main: #222528;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b3b8;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif; /* Fallback a fuente del sistema por ahora */
+  font-weight: 300; /* Tipografía más delgada por defecto */
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Limpiar la envoltura base para que ocupe todo el espacio */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- SCROLLBAR GLOBAL PERSONALIZADO --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(162, 146, 197, 0.3); /* Lila sutil */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--soma-purple); /* Lila encendido al pasar el mouse/tocar */
+}

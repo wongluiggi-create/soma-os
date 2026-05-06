@@ -1,0 +1,347 @@
+import { useState } from 'react';
+import './Configuracion.css';
+
+const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], peso, setPeso, estatura, setEstatura }) => {
+  const [activeTab, setActiveTab] = useState('perfil');
+  const [newCatIngreso, setNewCatIngreso] = useState('');
+  const [newCatEgreso, setNewCatEgreso] = useState('');
+  
+  const [notificaciones, setNotificaciones] = useState({
+    habitos: true,
+    cursos: true,
+    areas: true,
+    proyectos: true,
+    notas: false
+  });
+
+  const pesoNum = parseFloat(peso) || 0;
+  const estNum = parseFloat(estatura) || 0;
+  // Cálculo de IMC (Índice de Masa Corporal): peso(kg) / estatura(m)^2
+  const imc = estNum > 0 ? (pesoNum / Math.pow(estNum / 100, 2)).toFixed(1) : 0;
+  
+  let bodyType = 'normal';
+  if (imc < 18.5) bodyType = 'delgado';
+  else if (imc >= 25 && imc < 30) bodyType = 'sobrepeso';
+  else if (imc >= 30) bodyType = 'obeso';
+  
+  // Mapeamos el IMC a un porcentaje para el gráfico medidor (asumiendo un rango visual de IMC 12 a 40)
+  const imcPercent = Math.min(Math.max(((imc - 12) / 28) * 100, 0), 100);
+
+  const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'USD' }).format(value);
+
+  const toggleNotificacion = (key) => {
+    setNotificaciones(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  return (
+    <div className="settings-container">
+      {/* Sub-menú lateral de configuración */}
+      <aside className="settings-sidebar">
+        <h3 className="settings-title">Ajustes</h3>
+        <nav className="settings-nav">
+          <button className={`settings-tab ${activeTab === 'perfil' ? 'active' : ''}`} onClick={() => setActiveTab('perfil')}>
+            Perfil Personal
+          </button>
+          <button className={`settings-tab ${activeTab === 'bancarios' ? 'active' : ''}`} onClick={() => setActiveTab('bancarios')}>
+            Datos Bancarios
+          </button>
+          <button className={`settings-tab ${activeTab === 'salud' ? 'active' : ''}`} onClick={() => setActiveTab('salud')}>
+            Salud y Físico
+          </button>
+          <button className={`settings-tab ${activeTab === 'categorias' ? 'active' : ''}`} onClick={() => setActiveTab('categorias')}>
+            Categorías de Finanzas
+          </button>
+          <button className={`settings-tab ${activeTab === 'notificaciones' ? 'active' : ''}`} onClick={() => setActiveTab('notificaciones')}>
+            Notificaciones
+          </button>
+        </nav>
+      </aside>
+
+      {/* Área principal de contenido */}
+      <section className="settings-content">
+        {activeTab === 'perfil' && (
+          <div className="settings-card profile-card">
+            <div className="profile-header">
+              <div className="profile-avatar">
+                <span>US</span>
+                <div className="profile-avatar-overlay">
+                  <span>Cambiar</span>
+                </div>
+              </div>
+              <div className="profile-header-info">
+                <h2>{userName}</h2>
+                <p className="profile-occupation">Ingeniero de Software</p>
+                <p className="profile-email">usuario@soma-os.com</p>
+              </div>
+            </div>
+
+            <div className="profile-form">
+              <div className="input-group">
+                <label>Nombre</label>
+                <input type="text" value={userName} onChange={(e) => setUserName(e.target.value)} />
+              </div>
+              <div className="input-group">
+                <label>Apellido</label>
+                <input type="text" defaultValue="Soma" />
+              </div>
+              <div className="input-group">
+                <label>Correo Electrónico</label>
+                <input type="email" defaultValue="usuario@soma-os.com" />
+              </div>
+              <div className="input-group">
+                <label>Teléfono</label>
+                <input type="tel" defaultValue="+56 9 1234 5678" />
+              </div>
+              <div className="input-group">
+                <label>RUT</label>
+                <input type="text" defaultValue="12.345.678-9" />
+              </div>
+              <div className="input-group">
+                <label>Ocupación</label>
+                <input type="text" defaultValue="Ingeniero de Software" />
+              </div>
+              <div className="input-group full-width">
+                <label>Dirección</label>
+                <input type="text" defaultValue="Av. Principal 123, Ciudad" />
+              </div>
+            </div>
+          <div className="form-actions">
+            <button className="btn-save">Guardar Cambios</button>
+          </div>
+          </div>
+        )}
+
+        {activeTab === 'bancarios' && (
+          <div className="settings-card">
+            <div className="card-header-flex">
+              <h2>Tarjetas Registradas</h2>
+              <button className="btn-add">+ Añadir Tarjeta</button>
+            </div>
+            <p className="section-description">Administra tus métodos de pago (solo se muestra información general y últimos 4 dígitos).</p>
+            
+            <div className="bank-cards-grid">
+              {tarjetas.map(tarjeta => {
+                const percent = Math.min(Math.round((tarjeta.utilizado / tarjeta.total) * 100), 100);
+                const barColor = percent > 80 ? 'var(--soma-orange)' : 'var(--soma-purple)';
+                
+                return (
+                  <div key={tarjeta.id} className="bank-card">
+                    <div className="bank-card-header">
+                      <span className="card-type">{tarjeta.tipo}</span>
+                      <span className="bank-name">{tarjeta.banco}</span>
+                    </div>
+                    <div className="bank-card-body">
+                      <p className="card-number">**** **** **** {tarjeta.numero}</p>
+                      <div className="card-usage-section">
+                        <div className="card-limit-info">
+                          <div className="limit-text">
+                            <span className="limit-label">Utilizado</span>
+                            <span className="limit-value used">{formatCurrency(tarjeta.utilizado)}</span>
+                          </div>
+                          <div className="limit-text text-right">
+                            <span className="limit-label">Total</span>
+                            <span className="limit-value">{formatCurrency(tarjeta.total)}</span>
+                          </div>
+                        </div>
+                        <div className="limit-bar-track">
+                          <div className="limit-bar-fill" style={{ width: `${percent}%`, backgroundColor: barColor }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'salud' && (
+          <div className="settings-card">
+            <div className="card-header-flex">
+              <h2>Datos de Salud y Físico</h2>
+            </div>
+            <p className="section-description">Información biométrica y médica para tu seguimiento personal.</p>
+            
+            <div className="health-dashboard">
+              <div className="health-form">
+                <div className="profile-form">
+                  <div className="input-group">
+                    <label>Edad (años)</label>
+                    <input type="number" defaultValue="30" />
+                  </div>
+                  <div className="input-group">
+                    <label>Peso (kg)</label>
+                    <input type="number" value={peso} onChange={(e) => setPeso(e.target.value)} step="0.1" />
+                  </div>
+                  <div className="input-group">
+                    <label>Estatura (cm)</label>
+                    <input type="number" value={estatura} onChange={(e) => setEstatura(e.target.value)} />
+                  </div>
+                  <div className="input-group">
+                    <label>Tipo de Sangre</label>
+                    <input type="text" defaultValue="O+" />
+                  </div>
+                  <div className="input-group full-width">
+                    <label>Alergias Conocidas</label>
+                    <input type="text" placeholder="Ej. Penicilina, polen..." defaultValue="Ninguna" />
+                  </div>
+                  <div className="input-group full-width">
+                    <label>Condiciones Médicas</label>
+                    <input type="text" placeholder="Ej. Asma, hipertensión..." defaultValue="Ninguna" />
+                  </div>
+                </div>
+              <div className="form-actions">
+                <button className="btn-save">Guardar Cambios</button>
+              </div>
+              </div>
+
+              {/* Gráficos Analíticos */}
+              <div className="health-graphics-container">
+                <div className="graphic-card">
+                  <div className="graphic-header">
+                    <span>Índice de Masa Corporal (IMC)</span>
+                    <span className="graphic-value">{imc}</span>
+                  </div>
+                  
+                  <div className="bmi-gauge">
+                    <div className="bmi-gauge-track">
+                      <div className="bmi-gauge-marker" style={{ left: `${imcPercent}%` }}></div>
+                    </div>
+                    <div className="bmi-gauge-labels">
+                      <span>Bajo</span>
+                      <span>Normal</span>
+                      <span>Sobrepeso</span>
+                      <span>Obeso</span>
+                    </div>
+                  </div>
+                  
+                  <div className={`bmi-status-badge ${bodyType}`}>
+                    {bodyType === 'delgado' && 'Bajo Peso'}
+                    {bodyType === 'normal' && 'Peso Saludable'}
+                    {bodyType === 'sobrepeso' && 'Sobrepeso'}
+                    {bodyType === 'obeso' && 'Obesidad'}
+                  </div>
+                </div>
+
+                <div className="graphic-card">
+                  <div className="graphic-header">
+                    <span>Proporción Estatura / Peso</span>
+                  </div>
+                  <div className="relation-bar-chart">
+                    <div className="bar-group">
+                      <div className="bar-track">
+                        <div className="bar" style={{ height: `${Math.min((estNum / 220) * 100, 100)}%`, backgroundColor: 'var(--soma-purple)' }}></div>
+                      </div>
+                      <span>{estatura} cm</span>
+                    </div>
+                    <div className="bar-group">
+                      <div className="bar-track">
+                        <div className="bar" style={{ height: `${Math.min((pesoNum / 150) * 100, 100)}%`, backgroundColor: 'var(--soma-yellow)' }}></div>
+                      </div>
+                      <span>{peso} kg</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'categorias' && (
+          <div className="settings-card">
+            <div className="card-header-flex">
+              <h2>Categorías de Finanzas</h2>
+            </div>
+            <p className="section-description">Personaliza las categorías que utilizas para clasificar tus transacciones.</p>
+            
+            <div className="categories-management-grid">
+              <div className="category-column">
+                <h3 style={{ color: 'var(--soma-purple)' }}>Ingresos (+)</h3>
+                <div className="category-add-form">
+                  <input type="text" placeholder="Añadir ingreso..." value={newCatIngreso} onChange={(e) => setNewCatIngreso(e.target.value)} />
+                  <button className="btn-add-cat" onClick={() => {
+                    if(newCatIngreso && !categoriasIngreso.includes(newCatIngreso) && setCategoriasIngreso) {
+                      setCategoriasIngreso([...categoriasIngreso, newCatIngreso]);
+                      setNewCatIngreso('');
+                    }
+                  }}>+</button>
+                </div>
+                <div className="category-tags-container">
+                  {categoriasIngreso.map(cat => (
+                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => setCategoriasIngreso && setCategoriasIngreso(categoriasIngreso.filter(c => c !== cat))}>×</button></span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="category-column">
+                <h3 style={{ color: 'var(--soma-orange)' }}>Gastos (-)</h3>
+                <div className="category-add-form">
+                  <input type="text" placeholder="Añadir gasto..." value={newCatEgreso} onChange={(e) => setNewCatEgreso(e.target.value)} />
+                  <button className="btn-add-cat" onClick={() => {
+                    if(newCatEgreso && !categoriasEgreso.includes(newCatEgreso) && setCategoriasEgreso) {
+                      setCategoriasEgreso([...categoriasEgreso, newCatEgreso]);
+                      setNewCatEgreso('');
+                    }
+                  }}>+</button>
+                </div>
+                <div className="category-tags-container">
+                  {categoriasEgreso.map(cat => (
+                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => setCategoriasEgreso && setCategoriasEgreso(categoriasEgreso.filter(c => c !== cat))}>×</button></span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'notificaciones' && (
+          <div className="settings-card">
+            <div className="card-header-flex">
+              <h2>Preferencias de Notificaciones</h2>
+            </div>
+            <p className="section-description">Activa o desactiva las alertas que deseas recibir en Soma OS.</p>
+            
+            <div className="notifications-grid">
+              <div className="notification-item">
+                <div className="notif-info">
+                  <h4>Hábitos Diarios</h4><p>Recordatorios para registrar tus hábitos.</p>
+                </div>
+                <label className="switch"><input type="checkbox" checked={notificaciones.habitos} onChange={() => toggleNotificacion('habitos')} /><span className="slider"></span></label>
+              </div>
+              
+              <div className="notification-item">
+                <div className="notif-info">
+                  <h4>Cursos y Clases</h4><p>Alertas de módulos pendientes y tareas.</p>
+                </div>
+                <label className="switch"><input type="checkbox" checked={notificaciones.cursos} onChange={() => toggleNotificacion('cursos')} /><span className="slider"></span></label>
+              </div>
+              
+              <div className="notification-item">
+                <div className="notif-info">
+                  <h4>Áreas de Vida</h4><p>Resumen semanal de progreso de áreas.</p>
+                </div>
+                <label className="switch"><input type="checkbox" checked={notificaciones.areas} onChange={() => toggleNotificacion('areas')} /><span className="slider"></span></label>
+              </div>
+              
+              <div className="notification-item">
+                <div className="notif-info">
+                  <h4>Proyectos</h4><p>Avisos de plazos, fechas límite y vencimientos.</p>
+                </div>
+                <label className="switch"><input type="checkbox" checked={notificaciones.proyectos} onChange={() => toggleNotificacion('proyectos')} /><span className="slider"></span></label>
+              </div>
+
+              <div className="notification-item">
+                <div className="notif-info">
+                  <h4>Notas e Ideas</h4><p>Notificaciones sobre tareas no completadas en tus notas.</p>
+                </div>
+                <label className="switch"><input type="checkbox" checked={notificaciones.notas} onChange={() => toggleNotificacion('notas')} /><span className="slider"></span></label>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
+export default Configuracion;
