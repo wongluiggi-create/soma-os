@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos visuales
 
 const Areas = () => {
@@ -7,153 +9,152 @@ const Areas = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newAreaForm, setNewAreaForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
 
-  const [areas, setAreas] = useState([
-    { 
-      id: 1, titulo: 'Salud y Bienestar', estado: 'en progreso', fechaInicio: '2023-01-01', fechaFin: '2024-12-31',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc1', titulo: 'Nutrición', descripcion: 'Plan de alimentación y suplementos.', fechaInicio: '2023-10-01', fechaFin: '2023-10-31', enlaces: [],
-          tareas: [
-            { id: 101, texto: 'Definir calorías diarias', completada: true },
-            { id: 102, texto: 'Comprar meal prep', completada: false },
-          ]
-        },
-        { 
-          id: 'sc2', titulo: 'Ejercicio', descripcion: 'Rutina en el gimnasio y cardio.', fechaInicio: '2023-10-15', fechaFin: '2023-12-15', enlaces: [],
-          tareas: [
-            { id: 201, texto: 'Renovar suscripción del gym', completada: false },
-          ]
-        }
-      ]
-    },
-    { 
-      id: 2, titulo: 'Desarrollo Profesional', estado: 'en progreso', fechaInicio: '2023-06-01', fechaFin: '2024-06-01',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc3', titulo: 'Networking', descripcion: 'Asistir a eventos y mejorar presencia online.', fechaInicio: '2023-11-01', fechaFin: '2023-11-30', enlaces: [],
-          tareas: [
-            { id: 301, texto: 'Actualizar perfil de LinkedIn', completada: true },
-          ]
-        }
-      ]
-    },
-  ]);
+  const [areas, setAreas] = useState([]);
+
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const q = query(collection(db, 'usuarios', uid, 'areas'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setAreas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
 
   const areasFiltradas = areas.filter(a => !a.archivada && (filtro === 'todos' || a.estado === filtro));
   const areasArchivadas = areas.filter(a => a.archivada);
 
-  const toggleTarea = (areaId, subCategoriaId, tareaId) => {
-    setAreas(prevAreas => 
-      prevAreas.map(area => {
-        if (area.id === areaId) {
-          const nuevasSubCategorias = area.subCategorias.map(sc => {
-            if (sc.id === subCategoriaId) {
-              const nuevasTareas = sc.tareas.map(tarea => 
-                tarea.id === tareaId ? { ...tarea, completada: !tarea.completada } : tarea
-              );
-              return { ...sc, tareas: nuevasTareas };
-            }
-            return sc;
-          });
-          return { ...area, subCategorias: nuevasSubCategorias };
-        }
-        return area;
-      })
-    );
+  // --- HELPERS PARA GUARDAR EN FIRESTORE ---
+  const saveSubcategorias = async (areaId, nuevasSubCats) => {
+    if (auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'areas', areaId), { subCategorias: nuevasSubCats });
+    }
   };
 
   const toggleExpand = (subCatId) => {
     setExpandedSubcats(prev => ({ ...prev, [subCatId]: !prev[subCatId] }));
   };
 
-  const handleCreateArea = () => {
+  // --- ACCIONES PRINCIPALES ---
+  const handleCreateArea = async () => {
     if(!newAreaForm.titulo) return alert("El título es obligatorio");
+    if(!auth.currentUser) return;
     
     const nuevaArea = {
-      id: Date.now(),
       titulo: newAreaForm.titulo,
       estado: newAreaForm.estado,
       fechaInicio: newAreaForm.fechaInicio,
       fechaFin: newAreaForm.fechaFin,
       archivada: false,
-      subCategorias: []
+      subCategorias: [],
+      createdAt: new Date().toISOString()
     };
-    setAreas([nuevaArea, ...areas]);
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'areas'), nuevaArea);
     setIsModalOpen(false);
     setNewAreaForm({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
   };
 
-  const agregarSubCategoria = (areaId) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? {
-      ...a,
-      subCategorias: [...a.subCategorias, {
-        id: `sc-${Date.now()}`,
-        titulo: 'Nueva Subcategoría',
-        descripcion: '',
-        fechaInicio: '',
-        fechaFin: '',
-        enlaces: [],
-        tareas: []
-      }]
-    } : a));
+  const agregarSubCategoria = async (areaId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = [...a.subCategorias, {
+        id: `sc-${Date.now()}`, titulo: 'Nueva Subcategoría', descripcion: '', fechaInicio: '', fechaFin: '', enlaces: [], tareas: []
+      }];
+      await saveSubcategorias(areaId, newSubcats);
+    }
   };
 
-  const toggleArchivarArea = (areaId) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, archivada: !a.archivada } : a));
+  const toggleArchivarArea = async (areaId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a && auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'areas', areaId), { archivada: !a.archivada });
   };
 
-  const eliminarArea = (areaId) => {
-    setAreas(prev => prev.filter(a => a.id !== areaId));
+  const eliminarArea = async (areaId) => {
+    if (auth.currentUser) await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'areas', areaId));
   };
 
-  const updateAreaEstado = (areaId, nuevoEstado) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, estado: nuevoEstado } : a));
+  const updateAreaEstado = async (areaId, nuevoEstado) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'areas', areaId), { estado: nuevoEstado });
   };
 
-  const updateAreaDate = (areaId, field, value) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, [field]: value } : a));
+  const updateAreaDate = async (areaId, field, value) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'areas', areaId), { [field]: value });
   };
 
-  const updateSubcatField = (areaId, subCatId, field, value) => {
+  // --- ACCIONES EN SUBCATEGORÍAS ---
+  const updateSubcatFieldLocal = (areaId, subCatId, field, value) => {
     setAreas(prev => prev.map(a => a.id === areaId ? { ...a, subCategorias: a.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, [field]: value } : sc
     )} : a));
   };
 
-  const agregarEnlace = (areaId, subCatId) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, subCategorias: a.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc
-    )} : a));
+  const saveSubcatField = async (areaId, subCatId, field, value) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, [field]: value } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
   };
 
-  const updateEnlace = (areaId, subCatId, enlaceId, field, value) => {
+  const agregarEnlace = async (areaId, subCatId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
+  };
+
+  const updateEnlaceLocal = (areaId, subCatId, enlaceId, field, value) => {
     setAreas(prev => prev.map(a => a.id === areaId ? { ...a, subCategorias: a.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc
     )} : a));
   };
 
-  const eliminarEnlace = (areaId, subCatId, enlaceId) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? { ...a, subCategorias: a.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc
-    )} : a));
+  const saveEnlace = async (areaId, subCatId, enlaceId, field, value) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
   };
 
-  const agregarTarea = (areaId, subCatId) => {
-    setAreas(prev => prev.map(a => a.id === areaId ? {
-      ...a,
-      subCategorias: a.subCategorias.map(sc => sc.id === subCatId ? {
-        ...sc,
-        tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }]
-      } : sc)
-    } : a));
+  const eliminarEnlace = async (areaId, subCatId, enlaceId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
   };
 
-  const updateTareaTexto = (areaId, subCatId, tareaId, nuevoTexto) => {
+  const agregarTarea = async (areaId, subCatId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }] } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
+  };
+
+  const toggleTarea = async (areaId, subCategoriaId, tareaId) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCategoriaId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t) } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
+  };
+
+  const updateTareaTextoLocal = (areaId, subCatId, tareaId, nuevoTexto) => {
     setAreas(prev => prev.map(a => a.id === areaId ? { ...a, subCategorias: a.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc
     )} : a));
+  };
+
+  const saveTareaTexto = async (areaId, subCatId, tareaId, nuevoTexto) => {
+    const a = areas.find(a => a.id === areaId);
+    if (a) {
+      const newSubcats = a.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc);
+      await saveSubcategorias(areaId, newSubcats);
+    }
   };
 
   return (
@@ -255,7 +256,9 @@ const Areas = () => {
                         <div className="sub-categoria-content">
                           <textarea 
                             className="sub-categoria-textarea" 
-                            defaultValue={subCategoria.descripcion}
+                            value={subCategoria.descripcion}
+                            onChange={(e) => updateSubcatFieldLocal(area.id, subCategoria.id, 'descripcion', e.target.value)}
+                            onBlur={(e) => saveSubcatField(area.id, subCategoria.id, 'descripcion', e.target.value)}
                             placeholder="Añade notas o detalles aquí..."
                           ></textarea>
                           
@@ -269,20 +272,20 @@ const Areas = () => {
                                       className="link-input-modern" 
                                       placeholder="Título del enlace (Ej: Tablero de Figma...)" 
                                       value={enlace.titulo} 
-                                      onChange={(e) => updateEnlace(area.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(area.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
                                     />
                                     <input 
                                       type="url" 
                                       className="link-input-modern" 
                                       placeholder="https://..." 
                                       value={enlace.url} 
-                                      onChange={(e) => updateEnlace(area.id, subCategoria.id, enlace.id, 'url', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(area.id, subCategoria.id, enlace.id, 'url', e.target.value)}
                                     />
                                   </div>
                                   <div className="link-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(area.id, subCategoria.id, enlace.id)}>Cancelar</button>
                                     <button className="btn-save-link" onClick={() => {
-                                        if(enlace.url && enlace.titulo) updateEnlace(area.id, subCategoria.id, enlace.id, 'guardado', true);
+                                        if(enlace.url && enlace.titulo) saveEnlace(area.id, subCategoria.id, enlace.id, 'guardado', true);
                                         else alert('Por favor, ingresa tanto el título como la URL del enlace.');
                                     }}>Guardar</button>
                                   </div>
@@ -291,7 +294,7 @@ const Areas = () => {
                                 <div key={enlace.id} className="link-saved-display">
                                   <a href={enlace.url} target="_blank" rel="noopener noreferrer">📎 {enlace.titulo}</a>
                                   <div className="link-actions">
-                                    <button className="btn-edit-link" onClick={() => updateEnlace(area.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
+                                    <button className="btn-edit-link" onClick={() => saveEnlace(area.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(area.id, subCategoria.id, enlace.id)}>Eliminar</button>
                                   </div>
                                 </div>

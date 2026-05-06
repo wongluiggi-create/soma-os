@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { storage, db, auth } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc } from 'firebase/firestore';
 import './Configuracion.css';
 
-const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], peso, setPeso, estatura, setEstatura }) => {
+const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], peso, setPeso, estatura, setEstatura }) => {
   const [activeTab, setActiveTab] = useState('perfil');
   const [newCatIngreso, setNewCatIngreso] = useState('');
   const [newCatEgreso, setNewCatEgreso] = useState('');
@@ -13,6 +16,9 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
     proyectos: true,
     notas: false
   });
+
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const pesoNum = parseFloat(peso) || 0;
   const estNum = parseFloat(estatura) || 0;
@@ -31,6 +37,84 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
 
   const toggleNotificacion = (key) => {
     setNotificaciones(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const storageRef = ref(storage, `avatars/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      if (setAvatarUrl) setAvatarUrl(url);
+      
+      // Guardar URL del avatar en Firestore
+      if (auth.currentUser) {
+        await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { avatarUrl: url });
+      }
+    } catch (error) {
+      console.error("Error subiendo el avatar:", error);
+      alert("Hubo un error subiendo la imagen. Revisa las reglas de Storage en Firebase.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // --- Funciones para guardar en Firestore ---
+  const handleSaveProfile = async () => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { nombre: userName });
+      alert("Perfil guardado correctamente.");
+    } catch (error) {
+      console.error("Error guardando perfil:", error);
+      alert("Hubo un error al guardar tu perfil.");
+    }
+  };
+
+  const handleSaveHealth = async () => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { peso, estatura });
+      alert("Datos de salud guardados correctamente.");
+    } catch (error) {
+      console.error("Error guardando salud:", error);
+      alert("Hubo un error al guardar tus datos de salud.");
+    }
+  };
+
+  const handleAddCatIngreso = async () => {
+    if (newCatIngreso && !categoriasIngreso.includes(newCatIngreso) && setCategoriasIngreso) {
+      const nuevas = [...categoriasIngreso, newCatIngreso];
+      setCategoriasIngreso(nuevas);
+      setNewCatIngreso('');
+      if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas });
+    }
+  };
+
+  const handleRemoveCatIngreso = async (cat) => {
+    if (!setCategoriasIngreso) return;
+    const nuevas = categoriasIngreso.filter(c => c !== cat);
+    setCategoriasIngreso(nuevas);
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasIngreso: nuevas });
+  };
+
+  const handleAddCatEgreso = async () => {
+    if (newCatEgreso && !categoriasEgreso.includes(newCatEgreso) && setCategoriasEgreso) {
+      const nuevas = [...categoriasEgreso, newCatEgreso];
+      setCategoriasEgreso(nuevas);
+      setNewCatEgreso('');
+      if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas });
+    }
+  };
+
+  const handleRemoveCatEgreso = async (cat) => {
+    if (!setCategoriasEgreso) return;
+    const nuevas = categoriasEgreso.filter(c => c !== cat);
+    setCategoriasEgreso(nuevas);
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas });
   };
 
   return (
@@ -62,16 +146,27 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
         {activeTab === 'perfil' && (
           <div className="settings-card profile-card">
             <div className="profile-header">
-              <div className="profile-avatar">
-                <span>US</span>
+              <div className="profile-avatar" onClick={() => fileInputRef.current.click()}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : (
+                  <span>US</span>
+                )}
                 <div className="profile-avatar-overlay">
-                  <span>Cambiar</span>
+                  <span>{isUploading ? 'Subiendo...' : 'Cambiar'}</span>
                 </div>
               </div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                accept="image/*" 
+                onChange={handleAvatarUpload} 
+              />
               <div className="profile-header-info">
-                <h2>{userName}</h2>
-                <p className="profile-occupation">Ingeniero de Software</p>
-                <p className="profile-email">usuario@soma-os.com</p>
+                <h2>{userName || 'Usuario'}</h2>
+                <p className="profile-occupation"></p>
+                <p className="profile-email"></p>
               </div>
             </div>
 
@@ -82,31 +177,31 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
               </div>
               <div className="input-group">
                 <label>Apellido</label>
-                <input type="text" defaultValue="Soma" />
+                <input type="text" />
               </div>
               <div className="input-group">
                 <label>Correo Electrónico</label>
-                <input type="email" defaultValue="usuario@soma-os.com" />
+                <input type="email" />
               </div>
               <div className="input-group">
                 <label>Teléfono</label>
-                <input type="tel" defaultValue="+56 9 1234 5678" />
+                <input type="tel" />
               </div>
               <div className="input-group">
                 <label>RUT</label>
-                <input type="text" defaultValue="12.345.678-9" />
+                <input type="text" />
               </div>
               <div className="input-group">
                 <label>Ocupación</label>
-                <input type="text" defaultValue="Ingeniero de Software" />
+                <input type="text" />
               </div>
               <div className="input-group full-width">
                 <label>Dirección</label>
-                <input type="text" defaultValue="Av. Principal 123, Ciudad" />
+                <input type="text" />
               </div>
             </div>
           <div className="form-actions">
-            <button className="btn-save">Guardar Cambios</button>
+            <button className="btn-save" onClick={handleSaveProfile}>Guardar Cambios</button>
           </div>
           </div>
         )}
@@ -167,7 +262,7 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
                 <div className="profile-form">
                   <div className="input-group">
                     <label>Edad (años)</label>
-                    <input type="number" defaultValue="30" />
+                    <input type="number" />
                   </div>
                   <div className="input-group">
                     <label>Peso (kg)</label>
@@ -179,19 +274,19 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
                   </div>
                   <div className="input-group">
                     <label>Tipo de Sangre</label>
-                    <input type="text" defaultValue="O+" />
+                    <input type="text" />
                   </div>
                   <div className="input-group full-width">
                     <label>Alergias Conocidas</label>
-                    <input type="text" placeholder="Ej. Penicilina, polen..." defaultValue="Ninguna" />
+                    <input type="text" placeholder="Ej. Penicilina, polen..." />
                   </div>
                   <div className="input-group full-width">
                     <label>Condiciones Médicas</label>
-                    <input type="text" placeholder="Ej. Asma, hipertensión..." defaultValue="Ninguna" />
+                    <input type="text" placeholder="Ej. Asma, hipertensión..." />
                   </div>
                 </div>
               <div className="form-actions">
-                <button className="btn-save">Guardar Cambios</button>
+                <button className="btn-save" onClick={handleSaveHealth}>Guardar Cambios</button>
               </div>
               </div>
 
@@ -259,16 +354,11 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
                 <h3 style={{ color: 'var(--soma-purple)' }}>Ingresos (+)</h3>
                 <div className="category-add-form">
                   <input type="text" placeholder="Añadir ingreso..." value={newCatIngreso} onChange={(e) => setNewCatIngreso(e.target.value)} />
-                  <button className="btn-add-cat" onClick={() => {
-                    if(newCatIngreso && !categoriasIngreso.includes(newCatIngreso) && setCategoriasIngreso) {
-                      setCategoriasIngreso([...categoriasIngreso, newCatIngreso]);
-                      setNewCatIngreso('');
-                    }
-                  }}>+</button>
+                  <button className="btn-add-cat" onClick={handleAddCatIngreso}>+</button>
                 </div>
                 <div className="category-tags-container">
                   {categoriasIngreso.map(cat => (
-                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => setCategoriasIngreso && setCategoriasIngreso(categoriasIngreso.filter(c => c !== cat))}>×</button></span>
+                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => handleRemoveCatIngreso(cat)}>×</button></span>
                   ))}
                 </div>
               </div>
@@ -277,16 +367,11 @@ const Configuracion = ({ userName, setUserName, categoriasIngreso = [], setCateg
                 <h3 style={{ color: 'var(--soma-orange)' }}>Gastos (-)</h3>
                 <div className="category-add-form">
                   <input type="text" placeholder="Añadir gasto..." value={newCatEgreso} onChange={(e) => setNewCatEgreso(e.target.value)} />
-                  <button className="btn-add-cat" onClick={() => {
-                    if(newCatEgreso && !categoriasEgreso.includes(newCatEgreso) && setCategoriasEgreso) {
-                      setCategoriasEgreso([...categoriasEgreso, newCatEgreso]);
-                      setNewCatEgreso('');
-                    }
-                  }}>+</button>
+                  <button className="btn-add-cat" onClick={handleAddCatEgreso}>+</button>
                 </div>
                 <div className="category-tags-container">
                   {categoriasEgreso.map(cat => (
-                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => setCategoriasEgreso && setCategoriasEgreso(categoriasEgreso.filter(c => c !== cat))}>×</button></span>
+                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => handleRemoveCatEgreso(cat)}>×</button></span>
                   ))}
                 </div>
               </div>

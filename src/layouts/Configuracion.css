@@ -52,7 +52,8 @@
 /* --- CONTENIDO --- */
 .settings-content {
   flex: 1;
-  max-width: 800px;
+  max-width: 1000px; /* Aumentado para dar más espacio a los datos bancarios y salud */
+  min-width: 0; /* Previene desbordamiento en móviles */
 }
 
 .settings-card {
@@ -332,12 +333,14 @@
 }
 
 .health-form {
-  flex: 1;
-  min-width: 300px;
+  flex: 1.5; /* Ocupa más espacio proporcionalmente que la columna de gráficas */
+  min-width: 280px;
 }
 
 .health-graphics-container {
-  width: 320px;
+  flex: 1;
+  min-width: 280px;
+  max-width: 100%; /* Evita que desborde en móviles */
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -519,7 +522,7 @@
   }
 
   .health-graphics-container {
-    width: 100%; /* Las gráficas de salud ocupan todo el ancho */
+    min-width: 100%; /* Las gráficas de salud se apilan y ocupan todo el ancho en móviles */
   }
 }
 
@@ -536,10 +539,10 @@
 }
 
 .notif-info h4 { margin: 0 0 0.3rem 0; font-size: 1rem; font-weight: 500; color: var(--text-primary); }
-.notif-info p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); }
+.notif-info p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); padding-right: 1rem; }
 
 /* Toggle Switch UI */
-.switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+.switch { position: relative; display: inline-block; width: 46px; height: 24px; flex-shrink: 0; } /* flex-shrink: 0 evita que el botón se aplaste en móviles */
 .switch input { opacity: 0; width: 0; height: 0; }
 
 .slider {

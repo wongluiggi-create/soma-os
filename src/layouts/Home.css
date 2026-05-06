@@ -1,10 +1,11 @@
-/* --- CONTENEDOR PRINCIPAL (ANCHO LIMITADO) --- */
+/* --- CONTENEDOR PRINCIPAL --- */
 .home-container {
-  max-width: 1000px; /* Evita que ocupe todo el ancho */
-  margin: 0 auto; /* Centra el contenido */
+  width: 100%; /* Ocupa el mismo ancho completo que la página de Notas */
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  padding: 0 1rem; /* Añade margen en móviles para no tocar los bordes */
+  box-sizing: border-box;
   padding-bottom: 2rem;
 }
 
@@ -14,6 +15,11 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
+  gap: 1.5rem;
+}
+
+.home-greeting-section {
+  width: 60%;
 }
 
 .home-greeting-title {
@@ -37,14 +43,18 @@
   padding: 0.6rem 1.2rem;
   border-radius: 12px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.8rem;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 40%;
   color: var(--soma-orange);
   box-shadow: 0 4px 12px rgba(240, 127, 18, 0.15);
+  text-align: center;
 }
 
-.task-stat-number { font-size: 2rem; font-weight: 700; line-height: 1; }
-.task-stat-label { font-size: 0.75rem; text-transform: uppercase; font-weight: 600; line-height: 1.2; letter-spacing: 0.5px;}
+.task-stat-number { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+.task-stat-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; line-height: 1.2; letter-spacing: 0.5px;}
 
 /* --- DASHBOARD GRID --- */
 .dashboard-grid {
@@ -52,10 +62,16 @@
   grid-template-columns: 2fr 1fr;
   gap: 1.5rem;
   align-items: stretch;
+  min-width: 0;
+}
+
+.dashboard-grid > div {
+  min-width: 0; /* Permite que los bloques se encojan en lugar de expandir la pantalla */
 }
 
 @media (max-width: 900px) {
   .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-shared-row { grid-template-columns: 1fr !important; } /* Colapsa la fila compartida en tablets */
 }
 
 .dashboard-shared-row {
@@ -63,10 +79,28 @@
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
   align-items: stretch;
+  min-width: 0;
+}
+
+.dashboard-shared-row > div {
+  min-width: 0; /* Previene desbordamiento del contenido de Notas y Proyectos */
 }
 
 @media (max-width: 600px) {
   .dashboard-shared-row { grid-template-columns: 1fr; }
+  .home-header-flex { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .home-greeting-section { width: 100%; }
+  .header-task-stat { width: 100%; }
+  
+  /* Asegura que los textos largos en metas y notas bajen de línea si no caben */
+  .home-container .progress-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+  .home-container .transaction-item {
+    flex-wrap: wrap;
+  }
 }
 
 .dashboard-card {
@@ -86,33 +120,73 @@
   color: var(--text-secondary);
 }
 
-/* --- BALANCE FINANCIERO MINI-GRID --- */
-.financial-mini-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-}
-
-.finance-stat {
+/* --- RESUMEN FINANCIERO UNIFICADO --- */
+.finance-single-block {
+  display: flex;
+  flex-direction: column;
   background-color: rgba(0,0,0,0.2);
-  padding: 1rem;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.05);
+  padding: 1.5rem;
+  gap: 1.5rem;
 }
 
-.finance-stat-label {
+.finance-main-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+  padding-bottom: 1.5rem;
+}
+
+.finance-label {
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 0.3rem;
 }
 
-.finance-stat-val {
-  font-size: 1.4rem;
-  font-weight: 600;
-  margin: 0.3rem 0 0 0;
+.finance-val-main {
+  font-size: 2.2rem;
+  font-weight: 700;
+  margin: 0;
   color: var(--text-primary);
 }
+
+.finance-details-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.finance-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+}
+
+.finance-val-sub {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.finance-savings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-top: 1.5rem;
+}
+
+.text-income { color: #2ecc71; }
+.text-expense { color: #e74c3c; }
+.text-yellow { color: var(--soma-yellow); }
 
 /* --- CALENDARIO DE 53 SEMANAS (CONTRIBUCIÓN) --- */
 .activity-graph-wrapper {

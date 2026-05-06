@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos visuales
 
 const Cursos = () => {
@@ -7,153 +9,152 @@ const Cursos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
 
-  const [cursos, setCursos] = useState([
-    { 
-      id: 1, titulo: 'Master en React Frontend', estado: 'en progreso', fechaInicio: '2023-09-01', fechaFin: '2023-12-15',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc1', titulo: 'Módulo 1: Hooks y Estado', descripcion: 'Aprender useState, useEffect y Context API.', fechaInicio: '2023-09-01', fechaFin: '2023-09-15', enlaces: [],
-          tareas: [
-            { id: 101, texto: 'Ver videos de Hooks', completada: true },
-            { id: 102, texto: 'Construir proyecto To-Do', completada: true },
-          ]
-        },
-        { 
-          id: 'sc2', titulo: 'Módulo 2: React Router', descripcion: 'Navegación dinámica entre páginas.', fechaInicio: '2023-09-16', fechaFin: '2023-09-30', enlaces: [],
-          tareas: [
-            { id: 201, texto: 'Implementar rutas anidadas', completada: false },
-          ]
-        }
-      ]
-    },
-    { 
-      id: 2, titulo: 'Curso de UI/UX Figma', estado: 'pausado', fechaInicio: '2023-11-01', fechaFin: '2024-01-30',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc3', titulo: 'Conceptos de Diseño', descripcion: 'Teoría del color, tipografía y espacios.', fechaInicio: '2023-11-01', fechaFin: '2023-11-15', enlaces: [],
-          tareas: [
-            { id: 301, texto: 'Leer principios de Gestalt', completada: false },
-          ]
-        }
-      ]
-    },
-  ]);
+  const [cursos, setCursos] = useState([]);
+
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const q = query(collection(db, 'usuarios', uid, 'cursos'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setCursos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
 
   const cursosFiltrados = cursos.filter(c => !c.archivada && (filtro === 'todos' || c.estado === filtro));
   const cursosArchivadas = cursos.filter(c => c.archivada);
 
-  const toggleTarea = (cursoId, subCategoriaId, tareaId) => {
-    setCursos(prevCursos => 
-      prevCursos.map(curso => {
-        if (curso.id === cursoId) {
-          const nuevasSubCategorias = curso.subCategorias.map(sc => {
-            if (sc.id === subCategoriaId) {
-              const nuevasTareas = sc.tareas.map(tarea => 
-                tarea.id === tareaId ? { ...tarea, completada: !tarea.completada } : tarea
-              );
-              return { ...sc, tareas: nuevasTareas };
-            }
-            return sc;
-          });
-          return { ...curso, subCategorias: nuevasSubCategorias };
-        }
-        return curso;
-      })
-    );
+  // --- HELPERS PARA GUARDAR EN FIRESTORE ---
+  const saveSubcategorias = async (cursoId, nuevasSubCats) => {
+    if (auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'cursos', cursoId), { subCategorias: nuevasSubCats });
+    }
   };
 
   const toggleExpand = (subCatId) => {
     setExpandedSubcats(prev => ({ ...prev, [subCatId]: !prev[subCatId] }));
   };
 
-  const handleCreateCurso = () => {
+  // --- ACCIONES PRINCIPALES ---
+  const handleCreateCurso = async () => {
     if(!newCursoForm.titulo) return alert("El título es obligatorio");
+    if(!auth.currentUser) return;
     
     const nuevoCurso = {
-      id: Date.now(),
       titulo: newCursoForm.titulo,
       estado: newCursoForm.estado,
       fechaInicio: newCursoForm.fechaInicio,
       fechaFin: newCursoForm.fechaFin,
       archivada: false,
-      subCategorias: []
+      subCategorias: [],
+      createdAt: new Date().toISOString()
     };
-    setCursos([nuevoCurso, ...cursos]);
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'cursos'), nuevoCurso);
     setIsModalOpen(false);
     setNewCursoForm({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
   };
 
-  const agregarSubCategoria = (cursoId) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? {
-      ...c,
-      subCategorias: [...c.subCategorias, {
-        id: `sc-${Date.now()}`,
-        titulo: 'Nuevo Módulo',
-        descripcion: '',
-        fechaInicio: '',
-        fechaFin: '',
-        enlaces: [],
-        tareas: []
-      }]
-    } : c));
+  const agregarSubCategoria = async (cursoId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = [...c.subCategorias, {
+        id: `sc-${Date.now()}`, titulo: 'Nuevo Módulo', descripcion: '', fechaInicio: '', fechaFin: '', enlaces: [], tareas: []
+      }];
+      await saveSubcategorias(cursoId, newSubcats);
+    }
   };
 
-  const toggleArchivarCurso = (cursoId) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, archivada: !c.archivada } : c));
+  const toggleArchivarCurso = async (cursoId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c && auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'cursos', cursoId), { archivada: !c.archivada });
   };
 
-  const eliminarCurso = (cursoId) => {
-    setCursos(prev => prev.filter(c => c.id !== cursoId));
+  const eliminarCurso = async (cursoId) => {
+    if (auth.currentUser) await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'cursos', cursoId));
   };
 
-  const updateCursoEstado = (cursoId, nuevoEstado) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, estado: nuevoEstado } : c));
+  const updateCursoEstado = async (cursoId, nuevoEstado) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'cursos', cursoId), { estado: nuevoEstado });
   };
 
-  const updateCursoDate = (cursoId, field, value) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, [field]: value } : c));
+  const updateCursoDate = async (cursoId, field, value) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'cursos', cursoId), { [field]: value });
   };
 
-  const updateSubcatField = (cursoId, subCatId, field, value) => {
+  // --- ACCIONES EN SUBCATEGORÍAS ---
+  const updateSubcatFieldLocal = (cursoId, subCatId, field, value) => {
     setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, subCategorias: c.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, [field]: value } : sc
     )} : c));
   };
 
-  const agregarEnlace = (cursoId, subCatId) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, subCategorias: c.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc
-    )} : c));
+  const saveSubcatField = async (cursoId, subCatId, field, value) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, [field]: value } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
   };
 
-  const updateEnlace = (cursoId, subCatId, enlaceId, field, value) => {
+  const agregarEnlace = async (cursoId, subCatId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
+  };
+
+  const updateEnlaceLocal = (cursoId, subCatId, enlaceId, field, value) => {
     setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, subCategorias: c.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc
     )} : c));
   };
 
-  const eliminarEnlace = (cursoId, subCatId, enlaceId) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, subCategorias: c.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc
-    )} : c));
+  const saveEnlace = async (cursoId, subCatId, enlaceId, field, value) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
   };
 
-  const agregarTarea = (cursoId, subCatId) => {
-    setCursos(prev => prev.map(c => c.id === cursoId ? {
-      ...c,
-      subCategorias: c.subCategorias.map(sc => sc.id === subCatId ? {
-        ...sc,
-        tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }]
-      } : sc)
-    } : c));
+  const eliminarEnlace = async (cursoId, subCatId, enlaceId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
   };
 
-  const updateTareaTexto = (cursoId, subCatId, tareaId, nuevoTexto) => {
+  const agregarTarea = async (cursoId, subCatId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }] } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
+  };
+
+  const toggleTarea = async (cursoId, subCategoriaId, tareaId) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCategoriaId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t) } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
+  };
+
+  const updateTareaTextoLocal = (cursoId, subCatId, tareaId, nuevoTexto) => {
     setCursos(prev => prev.map(c => c.id === cursoId ? { ...c, subCategorias: c.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc
     )} : c));
+  };
+
+  const saveTareaTexto = async (cursoId, subCatId, tareaId, nuevoTexto) => {
+    const c = cursos.find(c => c.id === cursoId);
+    if (c) {
+      const newSubcats = c.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc);
+      await saveSubcategorias(cursoId, newSubcats);
+    }
   };
 
   return (
@@ -255,7 +256,9 @@ const Cursos = () => {
                         <div className="sub-categoria-content">
                           <textarea 
                             className="sub-categoria-textarea" 
-                            defaultValue={subCategoria.descripcion}
+                            value={subCategoria.descripcion}
+                            onChange={(e) => updateSubcatFieldLocal(curso.id, subCategoria.id, 'descripcion', e.target.value)}
+                            onBlur={(e) => saveSubcatField(curso.id, subCategoria.id, 'descripcion', e.target.value)}
                             placeholder="Añade notas o detalles aquí..."
                           ></textarea>
                           
@@ -269,20 +272,20 @@ const Cursos = () => {
                                       className="link-input-modern" 
                                       placeholder="Título del enlace (Ej: Tablero de Figma...)" 
                                       value={enlace.titulo} 
-                                      onChange={(e) => updateEnlace(curso.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(curso.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
                                     />
                                     <input 
                                       type="url" 
                                       className="link-input-modern" 
                                       placeholder="https://..." 
                                       value={enlace.url} 
-                                      onChange={(e) => updateEnlace(curso.id, subCategoria.id, enlace.id, 'url', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(curso.id, subCategoria.id, enlace.id, 'url', e.target.value)}
                                     />
                                   </div>
                                   <div className="link-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(curso.id, subCategoria.id, enlace.id)}>Cancelar</button>
                                     <button className="btn-save-link" onClick={() => {
-                                        if(enlace.url && enlace.titulo) updateEnlace(curso.id, subCategoria.id, enlace.id, 'guardado', true);
+                                        if(enlace.url && enlace.titulo) saveEnlace(curso.id, subCategoria.id, enlace.id, 'guardado', true);
                                         else alert('Por favor, ingresa tanto el título como la URL del enlace.');
                                     }}>Guardar</button>
                                   </div>
@@ -291,7 +294,7 @@ const Cursos = () => {
                                 <div key={enlace.id} className="link-saved-display">
                                   <a href={enlace.url} target="_blank" rel="noopener noreferrer">📎 {enlace.titulo}</a>
                                   <div className="link-actions">
-                                    <button className="btn-edit-link" onClick={() => updateEnlace(curso.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
+                                    <button className="btn-edit-link" onClick={() => saveEnlace(curso.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(curso.id, subCategoria.id, enlace.id)}>Eliminar</button>
                                   </div>
                                 </div>

@@ -6,10 +6,7 @@ import './Fitness.css'; // Importamos para utilizar el diseño animado de la rac
 
 // --- DATOS SIMULADOS PARA EL DASHBOARD ---
 const mockActivityGraph = Array.from({ length: 53 * 7 }).map(() => {
-  const rand = Math.random();
-  if (rand > 0.80) return 2; // Alto (100%)
-  if (rand > 0.50) return 1; // Medio (50%)
-  return 0; // Bajo (0%)
+  return 0; // Por defecto todo en 0
 });
 
 const Home = ({ userName }) => {
@@ -22,36 +19,23 @@ const Home = ({ userName }) => {
   });
 
   const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'USD' }).format(value);
+  const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
 
-  const finanzasData = { balance: 2500, ingresos: 3200, egresos: 700, ahorros: 2550 };
+  const finanzasData = { balance: 0, ingresos: 0, egresos: 0, ahorros: 0 };
   
   // --- PROYECTOS ACTIVOS ---
   const [mostrarMasProyectos, setMostrarMasProyectos] = useState(false);
-  const proyectosActivos = [
-    { id: 1, titulo: 'Rediseño de Soma OS', progreso: 45, color: 'var(--soma-purple)' },
-    { id: 2, titulo: 'Aplicación Móvil', progreso: 15, color: 'var(--soma-orange)' },
-    { id: 3, titulo: 'Campaña Marketing', progreso: 80, color: 'var(--soma-yellow)' },
-    { id: 4, titulo: 'Migración BD', progreso: 60, color: '#3498db' },
-    { id: 5, titulo: 'Onboarding Docs', progreso: 30, color: '#2ecc71' },
-    { id: 6, titulo: 'Analytics V2', progreso: 90, color: '#e74c3c' },
-  ];
+  const proyectosActivos = [];
   const proyectosVisibles = mostrarMasProyectos ? proyectosActivos.slice(0, 6) : proyectosActivos.slice(0, 3);
 
   // --- METAS DE AHORRO ---
-  const metasAhorro = [
-    { id: 1, titulo: 'Fondo de Emergencia', actual: 2100, objetivo: 5000 },
-    { id: 2, titulo: 'Viaje a Japón', actual: 450, objetivo: 3000 }
-  ];
+  const metasAhorro = [];
 
   // --- NOTAS PENDIENTES ---
-  const notasPendientes = [
-    { id: 1, titulo: 'Ideas para Soma OS', fecha: '2023-10-25' },
-    { id: 2, titulo: 'Lista de Compras del súper', fecha: '2023-10-26' }
-  ];
+  const notasPendientes = [];
 
   // --- RACHA DE ENTRENAMIENTO ---
-  const rachaEntrenamiento = 4;
+  const rachaEntrenamiento = 0;
   let rachaIcon = '🧊';
   let rachaClass = 'racha-none';
   if (rachaEntrenamiento > 0 && rachaEntrenamiento < 3) { rachaIcon = '🏃'; rachaClass = 'racha-low'; }
@@ -75,18 +59,9 @@ const Home = ({ userName }) => {
   const maxScore = activityGraph.length * 2; // El nivel máximo ahora es 2
   const activityPercentage = Math.round((totalScore / maxScore) * 100) || 0;
 
-  const areasVida = [
-    { nombre: 'Fitness & Salud', progreso: 75, color: 'var(--soma-orange)' },
-    { nombre: 'Desarrollo Profesional', progreso: 45, color: 'var(--soma-yellow)' },
-    { nombre: 'Cursos y Estudio', progreso: 60, color: 'var(--soma-purple)' },
-    { nombre: 'Relaciones y Familia', progreso: 85, color: '#3498db' } // Modificado para no repetir "Proyectos"
-  ];
+  const areasVida = [];
 
-  const [habitosHoy, setHabitosHoy] = useState([
-    { id: 1, nombre: 'Tomar 2 Litros de Agua', completado: true },
-    { id: 2, nombre: 'Meditar 10 minutos', completado: false },
-    { id: 3, nombre: 'Leer 15 páginas', completado: false }
-  ]);
+  const [habitosHoy, setHabitosHoy] = useState([]);
 
   const toggleHabit = (id) => {
     setHabitosHoy(prev => prev.map(h => h.id === id ? { ...h, completado: !h.completado } : h));
@@ -97,12 +72,12 @@ const Home = ({ userName }) => {
       {/* --- CABECERA (SALUDO Y TAREAS PENDIENTES) --- */}
       <header className="home-header-flex">
         <div className="home-greeting-section">
-          <h1 className="home-greeting-title">{greeting}, {userName} 👋</h1>
+          <h1 className="home-greeting-title">{greeting}{userName ? `, ${userName}` : ''} 👋</h1>
           <p className="home-date-subtitle">{currentDate}</p>
         </div>
         <div className="header-task-stat">
           <span className="task-stat-number">12</span>
-          <span className="task-stat-label">Tareas<br/>Pendientes</span>
+          <span className="task-stat-label">Tareas Pendientes</span>
         </div>
       </header>
 
@@ -162,22 +137,24 @@ const Home = ({ userName }) => {
           {/* Resumen Financiero */}
           <div className="dashboard-card">
             <h3 className="dashboard-card-title">Resumen Financiero</h3>
-            <div className="financial-mini-grid">
-              <div className="finance-stat">
-                <span className="finance-stat-label">Balance Total</span>
-                <p className="finance-stat-val text-income">{formatCurrency(finanzasData.balance)}</p>
+            <div className="finance-single-block">
+              <div className="finance-main-balance">
+                <span className="finance-label">Balance Total</span>
+                <h2 className="finance-val-main">{formatCurrency(finanzasData.balance)}</h2>
               </div>
-              <div className="finance-stat">
-                <span className="finance-stat-label">Ingresos</span>
-                <p className="finance-stat-val text-income">+{formatCurrency(finanzasData.ingresos)}</p>
+              <div className="finance-details-row">
+                <div className="finance-detail">
+                  <span className="finance-label">Ingresos</span>
+                  <span className="finance-val-sub text-income">+{formatCurrency(finanzasData.ingresos)}</span>
+                </div>
+                <div className="finance-detail">
+                  <span className="finance-label">Egresos</span>
+                  <span className="finance-val-sub text-expense">-{formatCurrency(finanzasData.egresos)}</span>
+                </div>
               </div>
-              <div className="finance-stat">
-                <span className="finance-stat-label">Egresos</span>
-                <p className="finance-stat-val text-expense">-{formatCurrency(finanzasData.egresos)}</p>
-              </div>
-              <div className="finance-stat">
-                <span className="finance-stat-label">Ahorros</span>
-                <p className="finance-stat-val text-yellow">{formatCurrency(finanzasData.ahorros)}</p>
+              <div className="finance-savings">
+                <span className="finance-label">Ahorros</span>
+                <span className="finance-val-sub text-yellow">{formatCurrency(finanzasData.ahorros)}</span>
               </div>
             </div>
           </div>

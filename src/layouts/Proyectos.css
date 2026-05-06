@@ -45,6 +45,14 @@
   gap: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 1rem;
+  overflow-x: auto; /* Permite el scroll horizontal */
+  -webkit-overflow-scrolling: touch; /* Desplazamiento suave en móviles */
+  scrollbar-width: none; /* Oculta la barra en Firefox */
+}
+
+/* Oculta la barra de desplazamiento en navegadores basados en WebKit (Chrome, Safari, Edge) */
+.proyectos-filters::-webkit-scrollbar {
+  display: none; 
 }
 
 .filter-btn {
@@ -56,6 +64,8 @@
   padding: 0.5rem 1rem;
   border-radius: 20px;
   transition: all 0.2s;
+  flex-shrink: 0; /* Evita que los botones se hagan pequeños en móviles */
+  white-space: nowrap; /* Obliga al texto a mantenerse en una sola línea */
 }
 
 .filter-btn:hover {

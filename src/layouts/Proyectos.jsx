@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css';
 
 const Proyectos = () => {
@@ -7,163 +9,152 @@ const Proyectos = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProjectForm, setNewProjectForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
 
-  // Nueva estructura de datos anidada con sub-categorías
-  const [proyectos, setProyectos] = useState([
-    { 
-      id: 1, titulo: 'Rediseño de Soma OS', estado: 'en progreso', fechaInicio: '2023-10-15', fechaFin: '2023-11-20',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc1', titulo: 'Interfaz de Usuario (UI)', descripcion: 'Creación de todos los componentes visuales y layouts.', fechaInicio: '2023-10-15', fechaFin: '2023-10-18', enlaces: [],
-          tareas: [
-            { id: 101, texto: 'Crear Layout Principal', completada: true },
-            { id: 102, texto: 'Diseñar página de Proyectos', completada: true },
-            { id: 103, texto: 'Maquetar Dashboard Home', completada: false },
-          ]
-        },
-        { 
-          id: 'sc2', titulo: 'Lógica y Estado', descripcion: 'Manejo del estado de la aplicación con React Hooks.', fechaInicio: '2023-10-19', fechaFin: '2023-10-25', enlaces: [],
-          tareas: [
-            { id: 201, texto: 'Implementar estado de Proyectos', completada: true },
-            { id: 202, texto: 'Crear contexto de autenticación', completada: false },
-          ]
-        }
-      ]
-    },
-    { 
-      id: 2, titulo: 'Aplicación Móvil', estado: 'pausado', fechaInicio: '2023-11-01', fechaFin: '2023-12-15',
-      archivada: false,
-      subCategorias: [
-        { 
-          id: 'sc3', titulo: 'Análisis y Diseño', descripcion: 'Definición de requerimientos y prototipos.', fechaInicio: '2023-11-01', fechaFin: '2023-11-15', enlaces: [],
-          tareas: [
-            { id: 301, texto: 'Prototipo en Figma', completada: true },
-            { id: 302, texto: 'Definir arquitectura', completada: false },
-          ]
-        }
-      ]
-    },
-  ]);
+  const [proyectos, setProyectos] = useState([]);
+
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const q = query(collection(db, 'usuarios', uid, 'proyectos'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setProyectos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
 
   const proyectosFiltrados = proyectos.filter(p => !p.archivada && (filtro === 'todos' || p.estado === filtro));
   const proyectosArchivados = proyectos.filter(p => p.archivada);
 
-  // Función para alternar el estado de una tarea, ahora con subcategoría
-  const toggleTarea = (proyectoId, subCategoriaId, tareaId) => {
-    setProyectos(prevProyectos => 
-      prevProyectos.map(proyecto => {
-        if (proyecto.id === proyectoId) {
-          const nuevasSubCategorias = proyecto.subCategorias.map(sc => {
-            if (sc.id === subCategoriaId) {
-              const nuevasTareas = sc.tareas.map(tarea => 
-                tarea.id === tareaId ? { ...tarea, completada: !tarea.completada } : tarea
-              );
-              return { ...sc, tareas: nuevasTareas };
-            }
-            return sc;
-          });
-          return { ...proyecto, subCategorias: nuevasSubCategorias };
-        }
-        return proyecto;
-      })
-    );
+  // --- HELPERS PARA GUARDAR EN FIRESTORE ---
+  const saveSubcategorias = async (proyectoId, nuevasSubCats) => {
+    if (auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'proyectos', proyectoId), { subCategorias: nuevasSubCats });
+    }
   };
 
-  // Función para expandir/contraer subtarjeta
   const toggleExpand = (subCatId) => {
     setExpandedSubcats(prev => ({ ...prev, [subCatId]: !prev[subCatId] }));
   };
 
-  // Funciones del modal y creación de proyecto
-  const handleCreateProject = () => {
+  // --- ACCIONES PRINCIPALES ---
+  const handleCreateProject = async () => {
     if(!newProjectForm.titulo) return alert("El título es obligatorio");
+    if(!auth.currentUser) return;
     
     const nuevoProyecto = {
-      id: Date.now(),
       titulo: newProjectForm.titulo,
       estado: newProjectForm.estado,
       fechaInicio: newProjectForm.fechaInicio,
       fechaFin: newProjectForm.fechaFin,
       archivada: false,
-      subCategorias: []
+      subCategorias: [],
+      createdAt: new Date().toISOString()
     };
-    setProyectos([nuevoProyecto, ...proyectos]);
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'proyectos'), nuevoProyecto);
     setIsModalOpen(false);
     setNewProjectForm({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '' });
   };
 
-  // Función para agregar una nueva subtarjeta
-  const agregarSubCategoria = (proyectoId) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? {
-      ...p,
-      subCategorias: [...p.subCategorias, {
-        id: `sc-${Date.now()}`,
-        titulo: 'Nueva Fase / Subtarjeta',
-        descripcion: '',
-        fechaInicio: '',
-        fechaFin: '',
-        enlaces: [],
-        tareas: []
-      }]
-    } : p));
+  const agregarSubCategoria = async (proyectoId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = [...p.subCategorias, {
+        id: `sc-${Date.now()}`, titulo: 'Nueva Fase / Subtarjeta', descripcion: '', fechaInicio: '', fechaFin: '', enlaces: [], tareas: []
+      }];
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
   };
 
-  const toggleArchivarProyecto = (proyectoId) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, archivada: !p.archivada } : p));
+  const toggleArchivarProyecto = async (proyectoId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p && auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'proyectos', proyectoId), { archivada: !p.archivada });
   };
 
-  const eliminarProyecto = (proyectoId) => {
-    setProyectos(prev => prev.filter(p => p.id !== proyectoId));
+  const eliminarProyecto = async (proyectoId) => {
+    if (auth.currentUser) await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'proyectos', proyectoId));
   };
 
-  const updateProyectoEstado = (proyectoId, nuevoEstado) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, estado: nuevoEstado } : p));
+  const updateProyectoEstado = async (proyectoId, nuevoEstado) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'proyectos', proyectoId), { estado: nuevoEstado });
   };
 
-  const updateProyectoDate = (proyectoId, field, value) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, [field]: value } : p));
+  const updateProyectoDate = async (proyectoId, field, value) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'proyectos', proyectoId), { [field]: value });
   };
 
-  const updateSubcatField = (proyectoId, subCatId, field, value) => {
+  // --- ACCIONES EN SUBCATEGORÍAS (Texto Híbrido) ---
+  const updateSubcatFieldLocal = (proyectoId, subCatId, field, value) => {
     setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, subCategorias: p.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, [field]: value } : sc
     )} : p));
   };
 
-  const agregarEnlace = (proyectoId, subCatId) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, subCategorias: p.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc
-    )} : p));
+  const saveSubcatField = async (proyectoId, subCatId, field, value) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, [field]: value } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
   };
 
-  const updateEnlace = (proyectoId, subCatId, enlaceId, field, value) => {
+  const agregarEnlace = async (proyectoId, subCatId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: [...(sc.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
+  };
+
+  const updateEnlaceLocal = (proyectoId, subCatId, enlaceId, field, value) => {
     setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, subCategorias: p.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc
     )} : p));
   };
 
-  const eliminarEnlace = (proyectoId, subCatId, enlaceId) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, subCategorias: p.subCategorias.map(sc => 
-      sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc
-    )} : p));
+  const saveEnlace = async (proyectoId, subCatId, enlaceId, field, value) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
   };
 
-  // Función para agregar una tarea vacía a una subtarjeta
-  const agregarTarea = (proyectoId, subCatId) => {
-    setProyectos(prev => prev.map(p => p.id === proyectoId ? {
-      ...p,
-      subCategorias: p.subCategorias.map(sc => sc.id === subCatId ? {
-        ...sc,
-        tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }]
-      } : sc)
-    } : p));
+  const eliminarEnlace = async (proyectoId, subCatId, enlaceId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, enlaces: sc.enlaces.filter(e => e.id !== enlaceId) } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
   };
 
-  // Función para actualizar el texto de una tarea
-  const updateTareaTexto = (proyectoId, subCatId, tareaId, nuevoTexto) => {
+  const agregarTarea = async (proyectoId, subCatId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: [...sc.tareas, { id: Date.now(), texto: '', completada: false }] } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
+  };
+
+  const toggleTarea = async (proyectoId, subCategoriaId, tareaId) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCategoriaId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t) } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
+  };
+
+  const updateTareaTextoLocal = (proyectoId, subCatId, tareaId, nuevoTexto) => {
     setProyectos(prev => prev.map(p => p.id === proyectoId ? { ...p, subCategorias: p.subCategorias.map(sc => 
       sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc
     )} : p));
+  };
+
+  const saveTareaTexto = async (proyectoId, subCatId, tareaId, nuevoTexto) => {
+    const p = proyectos.find(p => p.id === proyectoId);
+    if (p) {
+      const newSubcats = p.subCategorias.map(sc => sc.id === subCatId ? { ...sc, tareas: sc.tareas.map(t => t.id === tareaId ? { ...t, texto: nuevoTexto } : t) } : sc);
+      await saveSubcategorias(proyectoId, newSubcats);
+    }
   };
 
   return (
@@ -269,7 +260,9 @@ const Proyectos = () => {
                         <div className="sub-categoria-content">
                           <textarea 
                             className="sub-categoria-textarea" 
-                            defaultValue={subCategoria.descripcion}
+                            value={subCategoria.descripcion}
+                            onChange={(e) => updateSubcatFieldLocal(proyecto.id, subCategoria.id, 'descripcion', e.target.value)}
+                            onBlur={(e) => saveSubcatField(proyecto.id, subCategoria.id, 'descripcion', e.target.value)}
                             placeholder="Añade notas o detalles aquí..."
                           ></textarea>
                           
@@ -283,20 +276,20 @@ const Proyectos = () => {
                                       className="link-input-modern" 
                                       placeholder="Título del enlace (Ej: Tablero de Figma...)" 
                                       value={enlace.titulo} 
-                                      onChange={(e) => updateEnlace(proyecto.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(proyecto.id, subCategoria.id, enlace.id, 'titulo', e.target.value)}
                                     />
                                     <input 
                                       type="url" 
                                       className="link-input-modern" 
                                       placeholder="https://..." 
                                       value={enlace.url} 
-                                      onChange={(e) => updateEnlace(proyecto.id, subCategoria.id, enlace.id, 'url', e.target.value)}
+                                      onChange={(e) => updateEnlaceLocal(proyecto.id, subCategoria.id, enlace.id, 'url', e.target.value)}
                                     />
                                   </div>
                                   <div className="link-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(proyecto.id, subCategoria.id, enlace.id)}>Cancelar</button>
                                     <button className="btn-save-link" onClick={() => {
-                                        if(enlace.url && enlace.titulo) updateEnlace(proyecto.id, subCategoria.id, enlace.id, 'guardado', true);
+                                        if(enlace.url && enlace.titulo) saveEnlace(proyecto.id, subCategoria.id, enlace.id, 'guardado', true);
                                         else alert('Por favor, ingresa tanto el título como la URL del enlace.');
                                     }}>Guardar</button>
                                   </div>
@@ -305,7 +298,7 @@ const Proyectos = () => {
                                 <div key={enlace.id} className="link-saved-display">
                                   <a href={enlace.url} target="_blank" rel="noopener noreferrer">📎 {enlace.titulo}</a>
                                   <div className="link-actions">
-                                    <button className="btn-edit-link" onClick={() => updateEnlace(proyecto.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
+                                    <button className="btn-edit-link" onClick={() => saveEnlace(proyecto.id, subCategoria.id, enlace.id, 'guardado', false)}>Editar</button>
                                     <button className="btn-delete-link" onClick={() => eliminarEnlace(proyecto.id, subCategoria.id, enlace.id)}>Eliminar</button>
                                   </div>
                                 </div>
@@ -330,7 +323,8 @@ const Proyectos = () => {
                                       className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`}
                                       value={tarea.texto}
                                       placeholder="Escribe una tarea..."
-                                      onChange={(e) => updateTareaTexto(proyecto.id, subCategoria.id, tarea.id, e.target.value)}
+                                      onChange={(e) => updateTareaTextoLocal(proyecto.id, subCategoria.id, tarea.id, e.target.value)}
+                                      onBlur={(e) => saveTareaTexto(proyecto.id, subCategoria.id, tarea.id, e.target.value)}
                                     />
                                   </label>
                                 </li>
@@ -346,14 +340,14 @@ const Proyectos = () => {
                                 <span className="date-label">Inicia</span>
                                 <input type="date" className="date-picker-modern small" 
                                   value={subCategoria.fechaInicio || ''} 
-                                  onChange={(e) => updateSubcatField(proyecto.id, subCategoria.id, 'fechaInicio', e.target.value)} />
+                                  onChange={(e) => saveSubcatField(proyecto.id, subCategoria.id, 'fechaInicio', e.target.value)} />
                               </div>
                               <span className="fecha-separator">→</span>
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Fin</span>
                                 <input type="date" className="date-picker-modern small" 
                                   value={subCategoria.fechaFin || ''} 
-                                  onChange={(e) => updateSubcatField(proyecto.id, subCategoria.id, 'fechaFin', e.target.value)} />
+                                  onChange={(e) => saveSubcatField(proyecto.id, subCategoria.id, 'fechaFin', e.target.value)} />
                               </div>
                             </div>
                           </div>

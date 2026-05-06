@@ -1,107 +1,138 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos de los otros módulos
 
 const Notas = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNotaForm, setNewNotaForm] = useState({ titulo: '', descripcion: '' });
 
-  const [notas, setNotas] = useState([
-    {
-      id: 1,
-      titulo: 'Ideas para Soma OS',
-      descripcion: 'Implementar atajos de teclado y notificaciones push en futuras actualizaciones.',
-      fecha: '2023-10-25',
-      archivada: false,
-      enlaces: [],
-      tareas: [
-        { id: 101, texto: 'Investigar LocalStorage para guardar datos', completada: true },
-        { id: 102, texto: 'Diseñar el Home Dashboard', completada: false }
-      ]
-    },
-    {
-      id: 2,
-      titulo: 'Lista de Compras del súper',
-      descripcion: '',
-      fecha: '2023-10-26',
-      archivada: false,
-      enlaces: [],
-      tareas: [
-        { id: 201, texto: 'Café en grano', completada: false },
-        { id: 202, texto: 'Leche de almendras', completada: true },
-        { id: 203, texto: 'Pan integral', completada: false }
-      ]
-    }
-  ]);
+  const [notas, setNotas] = useState([]);
+
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+
+    const q = query(collection(db, 'usuarios', uid, 'notas'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setNotas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   // --- Funciones para la manipulación de Notas ---
-  const handleCreateNota = () => {
+  const handleCreateNota = async () => {
     if (!newNotaForm.titulo) return alert("El título es obligatorio");
+    if (!auth.currentUser) return;
+
     const nuevaNota = {
-      id: Date.now(),
       titulo: newNotaForm.titulo,
       descripcion: newNotaForm.descripcion,
       fecha: new Date().toISOString().split('T')[0], // Obtiene la fecha actual en formato YYYY-MM-DD
       archivada: false,
       enlaces: [],
-      tareas: []
+      tareas: [],
+      createdAt: new Date().toISOString()
     };
-    setNotas([nuevaNota, ...notas]);
-    setIsModalOpen(false);
-    setNewNotaForm({ titulo: '', descripcion: '' });
+
+    try {
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'notas'), nuevaNota);
+      setIsModalOpen(false);
+      setNewNotaForm({ titulo: '', descripcion: '' });
+    } catch (error) { console.error("Error al crear nota:", error); }
   };
 
-  const editarTituloNota = (notaId, tituloActual) => {
+  const editarTituloNota = async (notaId, tituloActual) => {
     const nuevoTitulo = prompt('Editar título de la nota:', tituloActual);
-    if (nuevoTitulo !== null && nuevoTitulo.trim() !== '') {
-      setNotas(prev => prev.map(n => n.id === notaId ? { ...n, titulo: nuevoTitulo } : n));
+    if (nuevoTitulo !== null && nuevoTitulo.trim() !== '' && auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { titulo: nuevoTitulo });
     }
   };
 
-  const toggleArchivarNota = (notaId) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? { ...n, archivada: !n.archivada } : n));
+  const toggleArchivarNota = async (notaId) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { archivada: !nota.archivada });
+    }
   };
 
-  const eliminarNota = (notaId) => {
-    setNotas(prev => prev.filter(n => n.id !== notaId));
+  const eliminarNota = async (notaId) => {
+    if (auth.currentUser) {
+      await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId));
+    }
   };
 
-  const updateNotaDesc = (notaId, text) => {
+  const updateNotaDescLocal = (notaId, text) => {
     setNotas(prev => prev.map(n => n.id === notaId ? { ...n, descripcion: text } : n));
   };
 
-  // --- Funciones para la manipulación de Enlaces ---
-  const agregarEnlace = (notaId) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? { ...n, enlaces: [...(n.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }] } : n));
+  const saveNotaDesc = async (notaId, text) => {
+    if (auth.currentUser) {
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { descripcion: text });
+    }
   };
 
-  const updateEnlace = (notaId, enlaceId, field, value) => {
+  // --- Funciones para la manipulación de Enlaces ---
+  const agregarEnlace = async (notaId) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevosEnlaces = [...(nota.enlaces || []), { id: Date.now(), titulo: '', url: '', guardado: false }];
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nuevosEnlaces });
+    }
+  };
+
+  const updateEnlaceLocal = (notaId, enlaceId, field, value) => {
     setNotas(prev => prev.map(n => n.id === notaId ? { ...n, enlaces: n.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : n));
   };
 
-  const eliminarEnlace = (notaId, enlaceId) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? { ...n, enlaces: n.enlaces.filter(e => e.id !== enlaceId) } : n));
+  const updateEnlace = async (notaId, enlaceId, field, value) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevosEnlaces = nota.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e);
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nuevosEnlaces });
+    }
+  };
+
+  const eliminarEnlace = async (notaId, enlaceId) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevosEnlaces = nota.enlaces.filter(e => e.id !== enlaceId);
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nuevosEnlaces });
+    }
   };
 
   // --- Funciones para la manipulación de Tareas (Checklist) ---
-  const agregarTarea = (notaId) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? {
-      ...n,
-      tareas: [...n.tareas, { id: Date.now(), texto: '', completada: false }]
-    } : n));
+  const agregarTarea = async (notaId) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevasTareas = [...nota.tareas, { id: Date.now(), texto: '', completada: false }];
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
+    }
   };
 
-  const toggleTarea = (notaId, tareaId) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? {
-      ...n,
-      tareas: n.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t)
-    } : n));
+  const toggleTarea = async (notaId, tareaId) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevasTareas = nota.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t);
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
+    }
   };
 
-  const updateTareaTexto = (notaId, tareaId, texto) => {
+  const updateTareaTextoLocal = (notaId, tareaId, texto) => {
     setNotas(prev => prev.map(n => n.id === notaId ? {
       ...n,
       tareas: n.tareas.map(t => t.id === tareaId ? { ...t, texto } : t)
     } : n));
+  };
+
+  const saveTareaTexto = async (notaId, tareaId, texto) => {
+    const nota = notas.find(n => n.id === notaId);
+    if (nota && auth.currentUser) {
+      const nuevasTareas = nota.tareas.map(t => t.id === tareaId ? { ...t, texto } : t);
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
+    }
   };
 
   const notasActivas = notas.filter(n => !n.archivada);
@@ -155,7 +186,8 @@ const Notas = () => {
                 <textarea 
                   className="sub-categoria-textarea" 
                   value={nota.descripcion}
-                  onChange={(e) => updateNotaDesc(nota.id, e.target.value)}
+                  onChange={(e) => updateNotaDescLocal(nota.id, e.target.value)}
+                  onBlur={(e) => saveNotaDesc(nota.id, e.target.value)}
                   placeholder="Escribe tus apuntes aquí..."
                 />
 
@@ -171,7 +203,8 @@ const Notas = () => {
                             className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`} 
                             value={tarea.texto} 
                             placeholder="Escribe una tarea..." 
-                            onChange={(e) => updateTareaTexto(nota.id, tarea.id, e.target.value)} 
+                            onChange={(e) => updateTareaTextoLocal(nota.id, tarea.id, e.target.value)} 
+                            onBlur={(e) => saveTareaTexto(nota.id, tarea.id, e.target.value)}
                           />
                         </label>
                       </li>
@@ -190,14 +223,14 @@ const Notas = () => {
                             className="link-input-modern" 
                             placeholder="Título del enlace..." 
                             value={enlace.titulo} 
-                            onChange={(e) => updateEnlace(nota.id, enlace.id, 'titulo', e.target.value)}
+                            onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'titulo', e.target.value)}
                           />
                           <input 
                             type="url" 
                             className="link-input-modern" 
                             placeholder="https://..." 
                             value={enlace.url} 
-                            onChange={(e) => updateEnlace(nota.id, enlace.id, 'url', e.target.value)}
+                            onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'url', e.target.value)}
                           />
                         </div>
                         <div className="link-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>

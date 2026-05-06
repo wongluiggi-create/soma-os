@@ -1,35 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { auth, db } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos estilos de layout, modales y botones
 import './Finanzas.css'; // Estilos específicos de tarjetas de finanzas
+import './Home.css'; // Importamos las clases del resumen financiero unificado
 
 const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = [], setTarjetas }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeseoModalOpen, setIsDeseoModalOpen] = useState(false);
+  const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
   const [newTxForm, setNewTxForm] = useState({ tipo: 'egreso', monto: '', descripcion: '', categoria: 'Alimentación', fecha: new Date().toISOString().split('T')[0] });
   const [newDeseoForm, setNewDeseoForm] = useState({ titulo: '', modelo: '', url: '', precio: '', cuotas: 1 });
+  const [newMetaForm, setNewMetaForm] = useState({ titulo: '', objetivo: '' });
   
   const [activeFundGoalId, setActiveFundGoalId] = useState(null);
   const [fundAmount, setFundAmount] = useState('');
   const [expandedMetas, setExpandedMetas] = useState({});
 
   // --- Estados de Datos ---
-  const [transacciones, setTransacciones] = useState([
-    { id: 1, tipo: 'ingreso', monto: 2500, descripcion: 'Sueldo Mensual', categoria: 'Salario', fecha: '2023-10-01' },
-    { id: 2, tipo: 'egreso', monto: 45, descripcion: 'Compra en Supermercado', categoria: 'Alimentación', fecha: '2023-10-05' },
-    { id: 3, tipo: 'egreso', monto: 120, descripcion: 'Pago de Luz e Internet', categoria: 'Servicios', fecha: '2023-10-10' },
-    { id: 4, tipo: 'ingreso', monto: 300, descripcion: 'Trabajo Freelance', categoria: 'Extra', fecha: '2023-10-15' },
-  ]);
+  const [transacciones, setTransacciones] = useState([]);
 
-  const [metas, setMetas] = useState([
-    { id: 1, titulo: 'Fondo de Emergencia', objetivo: 5000, actual: 2100, historial: [{ id: 101, fecha: '2023-10-15', monto: 1100 }, { id: 102, fecha: '2023-10-01', monto: 1000 }] },
-    { id: 2, titulo: 'Viaje a Japón', objetivo: 3000, actual: 450, historial: [{ id: 201, fecha: '2023-10-20', monto: 450 }] }
-  ]);
+  const [metas, setMetas] = useState([]);
 
-  const [deseos, setDeseos] = useState([
-    { id: 1, titulo: 'Monitor 4K', modelo: 'Dell UltraSharp', url: 'https://amazon.com', precio: 350, cuotas: 3, cuotasEstado: [true, false, false], completado: false },
-    { id: 2, titulo: 'Silla Ergonómica', modelo: 'Herman Miller', url: '', precio: 200, cuotas: 1, cuotasEstado: [true], completado: true },
-    { id: 3, titulo: 'Licencia Figma Pro', modelo: 'Anual', url: 'https://figma.com', precio: 144, cuotas: 12, cuotasEstado: Array(12).fill(false), completado: false }
-  ]);
+  const [deseos, setDeseos] = useState([]);
+
+  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+
+    // 1. Escuchar Transacciones (Ordenadas por fecha más reciente)
+    const qTx = query(collection(db, 'usuarios', uid, 'transacciones'), orderBy('fecha', 'desc'));
+    const unTx = onSnapshot(qTx, (snap) => {
+      setTransacciones(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    // 2. Escuchar Metas de Ahorro
+    const qMetas = query(collection(db, 'usuarios', uid, 'metas'));
+    const unMetas = onSnapshot(qMetas, (snap) => {
+      setMetas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    // 3. Escuchar Lista de Deseos
+    const qDeseos = query(collection(db, 'usuarios', uid, 'deseos'));
+    const unDeseos = onSnapshot(qDeseos, (snap) => {
+      setDeseos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unTx(); unMetas(); unDeseos(); };
+  }, []);
 
   // --- Cálculos ---
   const totalIngresos = transacciones.filter(t => t.tipo === 'ingreso').reduce((acc, curr) => acc + parseFloat(curr.monto), 0);
@@ -41,8 +60,9 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
   const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'USD' }).format(value);
 
   // --- Manipulación de Transacciones ---
-  const handleCreateTx = () => {
+  const handleCreateTx = async () => {
     if (!newTxForm.monto || !newTxForm.descripcion) return alert('El monto y la descripción son obligatorios.');
+    if (!auth.currentUser) return;
     
     let categoriaFinal = newTxForm.categoria;
 
@@ -52,31 +72,59 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
       const tarjetaSeleccionada = tarjetas.find(t => t.id === cardId);
       if (tarjetaSeleccionada && setTarjetas) {
         categoriaFinal = `💳 ${tarjetaSeleccionada.banco} ${tarjetaSeleccionada.numero}`;
-        setTarjetas(prev => prev.map(t => t.id === cardId ? { ...t, utilizado: t.utilizado + parseFloat(newTxForm.monto) } : t));
+        const nuevasTarjetas = tarjetas.map(t => t.id === cardId ? { ...t, utilizado: t.utilizado + parseFloat(newTxForm.monto) } : t);
+        setTarjetas(nuevasTarjetas);
+        await updateDoc(doc(db, 'usuarios', auth.currentUser.uid), { tarjetas: nuevasTarjetas });
       }
     }
 
     const nuevaTx = {
-      id: Date.now(),
       tipo: newTxForm.tipo,
       monto: parseFloat(newTxForm.monto),
       descripcion: newTxForm.descripcion,
       categoria: categoriaFinal,
-      fecha: newTxForm.fecha
+      fecha: newTxForm.fecha,
+      createdAt: new Date().toISOString()
     };
-    setTransacciones([nuevaTx, ...transacciones]);
-    setIsModalOpen(false);
-    setNewTxForm({ tipo: 'egreso', monto: '', descripcion: '', categoria: 'Alimentación', fecha: new Date().toISOString().split('T')[0] });
+
+    try {
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'transacciones'), nuevaTx);
+      setIsModalOpen(false);
+      setNewTxForm({ tipo: 'egreso', monto: '', descripcion: '', categoria: 'Alimentación', fecha: new Date().toISOString().split('T')[0] });
+    } catch (error) {
+      console.error('Error al guardar transacción:', error);
+      alert('Hubo un error al guardar la transacción.');
+    }
   };
 
-  const eliminarTx = (id) => setTransacciones(prev => prev.filter(t => t.id !== id));
+  const eliminarTx = async (id) => {
+    if (!auth.currentUser) return;
+    try {
+      await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'transacciones', id));
+    } catch (error) {
+      console.error('Error al eliminar transacción:', error);
+    }
+  };
 
   // --- Manipulación de Metas y Deseos ---
-  const agregarMeta = () => {
-    const titulo = prompt('Nombre de la nueva meta:');
-    const objetivo = prompt('Monto objetivo:');
-    if (titulo && objetivo) {
-      setMetas([...metas, { id: Date.now(), titulo, objetivo: parseFloat(objetivo), actual: 0, historial: [] }]);
+  const handleCreateMeta = async () => {
+    if (!newMetaForm.titulo || !newMetaForm.objetivo) return alert('El nombre y el monto objetivo son obligatorios.');
+    if (!auth.currentUser) return;
+    
+    const nuevaMeta = { 
+      titulo: newMetaForm.titulo, 
+      objetivo: parseFloat(newMetaForm.objetivo), 
+      actual: 0, 
+      historial: [],
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'metas'), nuevaMeta);
+      setIsMetaModalOpen(false);
+      setNewMetaForm({ titulo: '', objetivo: '' });
+    } catch (error) {
+      console.error('Error al guardar meta:', error);
     }
   };
 
@@ -84,46 +132,67 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
     setExpandedMetas(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleAbonarMeta = (id) => {
-    if (fundAmount && !isNaN(fundAmount) && Number(fundAmount) > 0) {
+  const handleAbonarMeta = async (id) => {
+    const meta = metas.find(m => m.id === id);
+    if (meta && fundAmount && !isNaN(fundAmount) && Number(fundAmount) > 0 && auth.currentUser) {
       const nuevoAbono = { id: Date.now(), monto: parseFloat(fundAmount), fecha: new Date().toISOString().split('T')[0] };
-      setMetas(prev => prev.map(m => m.id === id ? { ...m, actual: m.actual + parseFloat(fundAmount), historial: [nuevoAbono, ...(m.historial || [])] } : m));
-      setActiveFundGoalId(null);
-      setFundAmount('');
+      try {
+        await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'metas', id), {
+          actual: meta.actual + parseFloat(fundAmount),
+          historial: [nuevoAbono, ...(meta.historial || [])]
+        });
+        setActiveFundGoalId(null);
+        setFundAmount('');
+      } catch (error) {
+        console.error('Error al abonar:', error);
+      }
     }
   };
 
-  const eliminarMeta = (id) => setMetas(prev => prev.filter(m => m.id !== id));
+  const eliminarMeta = async (id) => {
+    if (!auth.currentUser) return;
+    try { await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'metas', id)); } 
+    catch (error) { console.error(error); }
+  };
 
-  const handleCreateDeseo = () => {
+  const handleCreateDeseo = async () => {
     if (!newDeseoForm.titulo || !newDeseoForm.precio) return alert('El título y precio son obligatorios.');
+    if (!auth.currentUser) return;
+
     const cuotasNum = parseInt(newDeseoForm.cuotas) || 1;
     const nuevoDeseo = {
-      id: Date.now(),
       ...newDeseoForm,
       precio: parseFloat(newDeseoForm.precio),
       cuotas: cuotasNum,
       cuotasEstado: Array(cuotasNum).fill(false),
-      completado: false
+      completado: false,
+      createdAt: new Date().toISOString()
     };
-    setDeseos([...deseos, nuevoDeseo]);
-    setIsDeseoModalOpen(false);
-    setNewDeseoForm({ titulo: '', modelo: '', url: '', precio: '', cuotas: 1 });
+
+    try {
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'deseos'), nuevoDeseo);
+      setIsDeseoModalOpen(false);
+      setNewDeseoForm({ titulo: '', modelo: '', url: '', precio: '', cuotas: 1 });
+    } catch (error) { console.error(error); }
   };
 
-  const toggleCuotaDeseo = (deseoId, index) => {
-    setDeseos(prev => prev.map(d => {
-      if (d.id === deseoId) {
-        const nuevoEstado = [...d.cuotasEstado];
-        nuevoEstado[index] = !nuevoEstado[index];
-        const completado = nuevoEstado.every(c => c); // Se completa si todas las cuotas son true
-        return { ...d, cuotasEstado: nuevoEstado, completado };
-      }
-      return d;
-    }));
+  const toggleCuotaDeseo = async (deseoId, index) => {
+    const deseo = deseos.find(d => d.id === deseoId);
+    if (deseo && auth.currentUser) {
+      const nuevoEstado = [...deseo.cuotasEstado];
+      nuevoEstado[index] = !nuevoEstado[index];
+      const completado = nuevoEstado.every(c => c);
+      try {
+        await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'deseos', deseoId), { cuotasEstado: nuevoEstado, completado });
+      } catch (error) { console.error(error); }
+    }
   };
 
-  const eliminarDeseo = (id) => setDeseos(prev => prev.filter(d => d.id !== id));
+  const eliminarDeseo = async (id) => {
+    if (!auth.currentUser) return;
+    try { await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'deseos', id)); } 
+    catch (error) { console.error(error); }
+  };
 
   return (
     <div className="proyectos-container">
@@ -139,22 +208,24 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
       </header>
 
       {/* --- TARJETAS DE RESUMEN --- */}
-      <div className="finance-summary-grid">
-        <div className="finance-summary-card">
-          <span className="summary-title">Balance Total</span>
-          <h3 className={`summary-amount ${balanceTotal >= 0 ? 'text-income' : 'text-expense'}`}>{formatCurrency(balanceTotal)}</h3>
+      <div className="finance-single-block" style={{ marginBottom: '2rem' }}>
+        <div className="finance-main-balance">
+          <span className="finance-label">Balance Total</span>
+          <h2 className="finance-val-main">{formatCurrency(balanceTotal)}</h2>
         </div>
-        <div className="finance-summary-card">
-          <span className="summary-title">Ingresos del Mes</span>
-          <h3 className="summary-amount text-income">{formatCurrency(totalIngresos)}</h3>
+        <div className="finance-details-row">
+          <div className="finance-detail">
+            <span className="finance-label">Ingresos del Mes</span>
+            <span className="finance-val-sub text-income">+{formatCurrency(totalIngresos)}</span>
+          </div>
+          <div className="finance-detail">
+            <span className="finance-label">Gastos del Mes</span>
+            <span className="finance-val-sub text-expense">-{formatCurrency(totalEgresos)}</span>
+          </div>
         </div>
-        <div className="finance-summary-card">
-          <span className="summary-title">Gastos del Mes</span>
-          <h3 className="summary-amount text-expense">{formatCurrency(totalEgresos)}</h3>
-        </div>
-        <div className="finance-summary-card">
-          <span className="summary-title">Ahorro / Inversión</span>
-          <h3 className="summary-amount text-yellow">{formatCurrency(totalAhorrado)}</h3>
+        <div className="finance-savings">
+          <span className="finance-label">Ahorro / Inversión</span>
+          <span className="finance-val-sub text-yellow">{formatCurrency(totalAhorrado)}</span>
         </div>
       </div>
 
@@ -266,7 +337,7 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
                   </div>
                 );
               })}
-              <button className="btn-add-subcat" onClick={agregarMeta}>+ Nueva Meta</button>
+              <button className="btn-add-subcat" onClick={() => setIsMetaModalOpen(true)}>+ Nueva Meta</button>
             </div>
           </div>
 
@@ -404,6 +475,29 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setIsDeseoModalOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={handleCreateDeseo}>Guardar Deseo</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL NUEVA META --- */}
+      {isMetaModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Crear Nueva Meta de Ahorro</h2>
+            <div className="modal-form">
+              <div className="input-group">
+                <label>Nombre de la meta</label>
+                <input type="text" value={newMetaForm.titulo} onChange={e => setNewMetaForm(prev => ({ ...prev, titulo: e.target.value }))} placeholder="Ej. Fondo de Emergencia..." />
+              </div>
+              <div className="input-group">
+                <label>Monto Objetivo</label>
+                <input type="number" value={newMetaForm.objetivo} onChange={e => setNewMetaForm(prev => ({ ...prev, objetivo: e.target.value }))} placeholder="0.00" />
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setIsMetaModalOpen(false)}>Cancelar</button>
+              <button className="btn-primary" onClick={handleCreateMeta}>Guardar Meta</button>
             </div>
           </div>
         </div>

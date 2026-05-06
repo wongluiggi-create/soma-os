@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import Login from './layouts/Login';
 import MainLayout from './layouts/MainLayout';
 import Home from './layouts/Home';
@@ -20,25 +21,48 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        // Descargar configuración y perfil desde Firestore
+        const docRef = doc(db, 'usuarios', currentUser.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserName(data.nombre || '');
+          setAvatarUrl(data.avatarUrl || '');
+          setCategoriasIngreso(data.categoriasIngreso || []);
+          setCategoriasEgreso(data.categoriasEgreso || []);
+          setTarjetas(data.tarjetas || []);
+          setPeso(data.peso || '');
+          setEstatura(data.estatura || '');
+        }
+      } else {
+        setUser(null);
+        // Limpiar datos al cerrar sesión
+        setUserName('');
+        setAvatarUrl('');
+        setCategoriasIngreso([]);
+        setCategoriasEgreso([]);
+        setTarjetas([]);
+        setPeso('');
+        setEstatura('');
+      }
       setLoadingAuth(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const [userName, setUserName] = useState('Luiggi');
+  const [userName, setUserName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
 
-  const [categoriasIngreso, setCategoriasIngreso] = useState(['Sueldo', 'Honorarios', 'Ventas', 'Inversiones', 'Regalo', 'Extra', 'Criptomonedas']);
-  const [categoriasEgreso, setCategoriasEgreso] = useState(['Alimentación', 'Servicios', 'Arriendo/Hipoteca', 'Transporte', 'Ocio', 'Salud', 'Educación', 'Hogar', 'Deudas', 'Suscripciones', 'Mascotas']);
+  const [categoriasIngreso, setCategoriasIngreso] = useState([]);
+  const [categoriasEgreso, setCategoriasEgreso] = useState([]);
 
-  const [tarjetas, setTarjetas] = useState([
-    { id: 1, tipo: 'Visa', banco: 'Banco Estado', numero: '4321', utilizado: 450000, total: 1500000 },
-    { id: 2, tipo: 'Mastercard', banco: 'Banco Santander', numero: '8765', utilizado: 600000, total: 800000 }
-  ]);
+  const [tarjetas, setTarjetas] = useState([]);
 
-  const [peso, setPeso] = useState(75);
-  const [estatura, setEstatura] = useState(175);
+  const [peso, setPeso] = useState('');
+  const [estatura, setEstatura] = useState('');
 
   // Pantalla de carga mientras Firebase verifica si estás logueado
   if (loadingAuth) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-main)', color: 'var(--soma-yellow)' }}>Cargando Soma OS...</div>;
@@ -61,6 +85,8 @@ function App() {
           <Route path="configuracion" element={<Configuracion 
             userName={userName}
             setUserName={setUserName}
+            avatarUrl={avatarUrl}
+            setAvatarUrl={setAvatarUrl}
             categoriasIngreso={categoriasIngreso} 
             setCategoriasIngreso={setCategoriasIngreso} 
             categoriasEgreso={categoriasEgreso} 

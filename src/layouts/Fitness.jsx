@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import './Proyectos.css'; // Reutilizamos los estilos principales del sistema
 import './Finanzas.css'; // Reutilizamos el grid de Finanzas
 import './Fitness.css'; // Estilos específicos de rutinas y nutrición
 
-const Fitness = ({ peso = 75, estatura = 175 }) => {
+const Fitness = ({ peso = '', estatura = '' }) => {
   const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
   const [activeRutinaId, setActiveRutinaId] = useState(null);
   const [newExerciseForm, setNewExerciseForm] = useState({ nombre: '', series: 4, reps: '10', peso: '' });
   const [isComidaModalOpen, setIsComidaModalOpen] = useState(false);
   const [newComidaForm, setNewComidaForm] = useState({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
+
+  const fileInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [targetEjercicio, setTargetEjercicio] = useState(null);
 
   // --- ESTADO CALENDARIO Y RACHAS ---
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
@@ -17,7 +23,7 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
     const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Ajustar al lunes
     return new Date(today.setDate(diff));
   });
-  const [rachaDiaria] = useState(4); // Ejemplo de racha
+  const [rachaDiaria] = useState(0); 
 
   const pesoNum = parseFloat(peso) || 0;
   const estNum = parseFloat(estatura) || 0;
@@ -31,33 +37,13 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
   else if (imc >= 30) { bodyType = 'obeso'; bodyLabel = 'Obesidad'; }
 
   // --- RUTINAS ---
-  const [rutinas, setRutinas] = useState([
-    {
-      id: 1, titulo: 'Día de Empuje (Pecho/Tríceps)', estado: 'activo', archivada: false, historial: [], enlaces: [], categorias: ['Gym', 'Pesas'], diasAsignados: [0, 2, 4],
-      ejercicios: [
-        { id: 101, nombre: 'Press de Banca', series: 4, reps: '8-10', peso: '60 kg', seriesEstado: [true, true, false, false], imagenes: ['https://placehold.co/60x60/222528/a292c5?text=1', 'https://placehold.co/60x60/222528/a292c5?text=2'] },
-        { id: 102, nombre: 'Press Militar', series: 3, reps: '10-12', peso: '40 kg', seriesEstado: [false, false, false], imagenes: [] },
-        { id: 103, nombre: 'Extensiones de Tríceps', series: 3, reps: '15', peso: '15 kg', seriesEstado: [false, false, false], imagenes: [] },
-      ]
-    },
-    {
-      id: 2, titulo: 'Día de Tirón (Espalda/Bíceps)', estado: 'descanso', archivada: false, historial: [], enlaces: [], categorias: ['Casa', 'Kettlebell'], diasAsignados: [1, 3],
-      ejercicios: [
-        { id: 201, nombre: 'Dominadas', series: 4, reps: 'Al fallo', peso: 'Corporal', seriesEstado: [false, false, false, false], imagenes: [] },
-        { id: 202, nombre: 'Remo con barra', series: 3, reps: '10-12', peso: '24 kg', seriesEstado: [false, false, false], imagenes: [] },
-      ]
-    }
-  ]);
+  const [rutinas, setRutinas] = useState([]);
 
   // --- ALIMENTACIÓN ---
-  const [comidas, setComidas] = useState([
-    { id: 1, tipo: 'Desayuno', hora: '08:00 AM', descripcion: 'Avena con leche de almendras, plátano y proteína.', calorias: 450, proteina: 30, carbs: 55, grasas: 12 },
-    { id: 2, tipo: 'Almuerzo', hora: '01:30 PM', descripcion: 'Pechuga de pollo a la plancha con arroz integral y brócoli.', calorias: 600, proteina: 45, carbs: 60, grasas: 15 },
-    { id: 3, tipo: 'Cena', hora: '08:00 PM', descripcion: 'Ensalada de atún con huevo cocido y aceite de oliva.', calorias: 400, proteina: 35, carbs: 10, grasas: 20 },
-  ]);
+  const [comidas, setComidas] = useState([]);
 
   // --- GRÁFICO DE ACTIVIDAD (Datos Simulados Semanales) ---
-  const activityData = [40, 80, 0, 100, 60, 40, 90];
+  const activityData = [0, 0, 0, 0, 0, 0, 0];
   const coordinates = activityData.map((val, index) => ({
     x: (index * 100) + 50,
     y: 100 - (val * 0.8)
@@ -143,16 +129,37 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
     }));
   };
 
-  const agregarImagenEjercicio = (rutinaId, ejercicioId) => {
-    const url = prompt('Ingresa la URL de la imagen de referencia (Ej: enlace de Google Images):');
-    if (url && url.trim() !== '') {
-      setRutinas(prev => prev.map(r => r.id === rutinaId ? {
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !targetEjercicio) return;
+
+    setUploadingImage(true);
+    try {
+      const storageRef = ref(storage, `fitness/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      setRutinas(prev => prev.map(r => r.id === targetEjercicio.rutinaId ? {
         ...r,
-        ejercicios: r.ejercicios.map(e => e.id === ejercicioId ? {
-          ...e,
-          imagenes: [...(e.imagenes || []), url].slice(0, 3) // Límite máximo de 3 imágenes
-        } : e)
+        ejercicios: r.ejercicios.map(ej => ej.id === targetEjercicio.ejercicioId ? {
+          ...ej,
+          imagenes: [...(ej.imagenes || []), url].slice(0, 2)
+        } : ej)
       } : r));
+    } catch (error) {
+      console.error("Error subiendo la imagen:", error);
+      alert("Hubo un error subiendo la imagen. Verifica las reglas de Firebase Storage.");
+    } finally {
+      setUploadingImage(false);
+      setTargetEjercicio(null);
+      e.target.value = null; // Permite subir la misma imagen nuevamente si es necesario
+    }
+  };
+
+  const agregarImagenEjercicio = (rutinaId, ejercicioId) => {
+    setTargetEjercicio({ rutinaId, ejercicioId });
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -252,9 +259,18 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
         </div>
       </header>
 
+      {/* Input oculto para subir imágenes a Firebase */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        style={{ display: 'none' }} 
+        accept="image/*" 
+        onChange={handleImageUpload} 
+      />
+
       <div className="finance-content-grid">
         {/* --- RUTINAS --- */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
           
           {/* Calendario de Entrenamientos */}
           <div className="proyecto-card" style={{ padding: '1rem 1.5rem' }}>
@@ -372,8 +388,10 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
                           {(ejercicio.imagenes || []).map((img, i) => (
                             <img key={i} src={img} alt={`Ref ${i}`} className="exercise-image-thumb" />
                           ))}
-                          {(!ejercicio.imagenes || ejercicio.imagenes.length < 3) && (
-                            <div className="exercise-image-add" title="Añadir foto" onClick={() => agregarImagenEjercicio(rutina.id, ejercicio.id)}>+</div>
+                          {(!ejercicio.imagenes || ejercicio.imagenes.length < 2) && (
+                            <div className="exercise-image-add" title="Añadir foto" onClick={() => agregarImagenEjercicio(rutina.id, ejercicio.id)}>
+                              {uploadingImage && targetEjercicio?.ejercicioId === ejercicio.id ? '⌛' : '+'}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -437,7 +455,7 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
         </div>
 
         {/* --- COLUMNA DERECHA: MÉTRICAS Y GRÁFICO --- */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', minWidth: 0 }}>
           
           <div className="proyecto-card">
             {/* MÉTRICA IMC */}
@@ -483,7 +501,7 @@ const Fitness = ({ peso = 75, estatura = 175 }) => {
                     </div>
                     <span className="tx-amount text-income" style={{ fontSize: '1rem' }}>{comida.calorias} kcal</span>
                   </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4 }}>{comida.descripcion}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.4, wordBreak: 'break-word' }}>{comida.descripcion}</p>
                   <div className="macros-container">
                     <span className="macro-badge" style={{ color: '#3498db', border: '1px solid rgba(52, 152, 219, 0.3)' }}>P: {comida.proteina}g</span>
                     <span className="macro-badge" style={{ color: 'var(--soma-yellow)', border: '1px solid rgba(253, 200, 21, 0.3)' }}>C: {comida.carbs}g</span>
