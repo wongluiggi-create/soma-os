@@ -33,7 +33,17 @@ const Login = () => {
       }
     } catch (err) {
       console.error(err);
-      setError('Error en la autenticación. Verifica tus datos.');
+      
+      // Traducir los errores específicos de Firebase al español
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        setError('Correo o contraseña incorrectos.');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('Este correo ya está registrado. Ve a "Inicia Sesión".');
+      } else if (err.code === 'auth/too-many-requests') {
+        setError('Demasiados intentos fallidos. Intenta más tarde.');
+      } else {
+        setError(`Error de Firebase: ${err.message}`); // Mostrará el error técnico si es otro distinto
+      }
     } finally {
       setLoading(false);
     }

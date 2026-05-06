@@ -5,12 +5,12 @@ import { getStorage } from "firebase/storage";
 
 // Reemplaza esto con tu configuración de Firebase Console
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "tu-proyecto.firebaseapp.com",
-  projectId: "tu-proyecto",
-  storageBucket: "tu-proyecto.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyBFHZT8_ACLpYHZoW9tUapGBcsBO5XyWME",
+  authDomain: "soma-os.firebaseapp.com",
+  projectId: "soma-os",
+  storageBucket: "soma-os.firebasestorage.app",
+  messagingSenderId: "528998219351",
+  appId: "1:528998219351:web:602601440bea9a7b58ad12"
 };
 
 export const app = initializeApp(firebaseConfig);
