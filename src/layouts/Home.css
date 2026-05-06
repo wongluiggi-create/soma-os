@@ -255,5 +255,24 @@
   z-index: 2;
 }
 
-.activity-block.level-1 { background-color: rgba(162, 146, 197, 0.5); } /* Opacidad Media (50%) */
-.activity-block.level-2 { background-color: rgba(162, 146, 197, 1); }   /* Opacidad Alta (100%) */
+/* 5 Niveles de Productividad Anual */
+.activity-block.level-1 { background-color: rgba(162, 146, 197, 0.25); } /* Nivel 1 (25%) */
+.activity-block.level-2 { background-color: rgba(162, 146, 197, 0.50); } /* Nivel 2 (50%) */
+.activity-block.level-3 { background-color: rgba(162, 146, 197, 0.75); } /* Nivel 3 (75%) */
+.activity-block.level-4 { background-color: rgba(162, 146, 197, 1); }    /* Nivel 4 (100%) */
+
+/* Resaltado del día actual */
+.activity-block.is-today {
+  outline: 2px solid var(--soma-orange);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 10px rgba(240, 127, 18, 0.6);
+}
+
+/* Límite móvil para bloques del dashboard (muestra solo los 3 primeros) */
+@media (max-width: 600px) {
+  .limit-items-mobile > *:nth-child(n+4) {
+    display: none !important;
+  }
+}

@@ -228,7 +228,7 @@ const Proyectos = () => {
                   <span className="fecha-separator">→</span>
                   <div className="date-badge">
                     <span className="date-label">Fin</span>
-                    <input type="date" className="date-picker-modern" 
+                    <input type={proyecto.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern" 
                       value={proyecto.fechaFin || ''} 
                       onChange={(e) => updateProyectoDate(proyecto.id, 'fechaFin', e.target.value)} />
                   </div>
@@ -353,7 +353,7 @@ const Proyectos = () => {
                               <span className="fecha-separator">→</span>
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Fin</span>
-                                <input type="date" className="date-picker-modern small" 
+                                <input type={subCategoria.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern small" 
                                   value={subCategoria.fechaFin || ''} 
                                   onChange={(e) => saveSubcatField(proyecto.id, subCategoria.id, 'fechaFin', e.target.value)} />
                               </div>
@@ -397,7 +397,7 @@ const Proyectos = () => {
                   return (
                     <tr key={proyecto.id}>
                       <td className="archived-title">{proyecto.titulo}</td>
-                      <td>{proyecto.fechaInicio} → {proyecto.fechaFin}</td>
+                      <td>{proyecto.fechaInicio} → {proyecto.fechaFin || 'Indefinido'}</td>
                       <td>{progresoGen}%</td>
                       <td><span className={`status-badge ${proyecto.estado.replace(' ', '-')}`}>{proyecto.estado}</span></td>
                       <td>
@@ -447,7 +447,7 @@ const Proyectos = () => {
                 <div className="input-group">
                   <label>Fecha de Fin</label>
                   <div className="date-badge">
-                    <input type="date" className="date-picker-modern full-width-date" value={newProjectForm.fechaFin} onChange={e => setNewProjectForm({...newProjectForm, fechaFin: e.target.value})} />
+                    <input type={newProjectForm.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern full-width-date" value={newProjectForm.fechaFin} onChange={e => setNewProjectForm({...newProjectForm, fechaFin: e.target.value})} />
                   </div>
                 </div>
               </div>

@@ -4,10 +4,11 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 import './Configuracion.css';
 
-const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, tarjetas = [], setTarjetas, peso, setPeso, estatura, setEstatura }) => {
+const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categoriasIngreso = [], setCategoriasIngreso, categoriasEgreso = [], setCategoriasEgreso, categoriasCursos = [], setCategoriasCursos, tarjetas = [], setTarjetas, peso, setPeso, estatura, setEstatura }) => {
   const [activeTab, setActiveTab] = useState('perfil');
   const [newCatIngreso, setNewCatIngreso] = useState('');
   const [newCatEgreso, setNewCatEgreso] = useState('');
+  const [newCatCurso, setNewCatCurso] = useState('');
   
   const [notificaciones, setNotificaciones] = useState({
     habitos: true,
@@ -135,6 +136,22 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
     const nuevas = categoriasEgreso.filter(c => c !== cat);
     setCategoriasEgreso(nuevas);
     if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasEgreso: nuevas }, { merge: true });
+  };
+
+  const handleAddCatCurso = async () => {
+    if (newCatCurso && !categoriasCursos.includes(newCatCurso) && setCategoriasCursos) {
+      const nuevas = [...categoriasCursos, newCatCurso];
+      setCategoriasCursos(nuevas);
+      setNewCatCurso('');
+      if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasCursos: nuevas }, { merge: true });
+    }
+  };
+
+  const handleRemoveCatCurso = async (cat) => {
+    if (!setCategoriasCursos) return;
+    const nuevas = categoriasCursos.filter(c => c !== cat);
+    setCategoriasCursos(nuevas);
+    if (auth.currentUser) await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { categoriasCursos: nuevas }, { merge: true });
   };
 
   const handleAddCard = async () => {
@@ -415,6 +432,19 @@ const Configuracion = ({ userName, setUserName, avatarUrl, setAvatarUrl, categor
                 <div className="category-tags-container">
                   {categoriasEgreso.map(cat => (
                     <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => handleRemoveCatEgreso(cat)}>×</button></span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="category-column">
+                <h3 style={{ color: 'var(--soma-yellow)' }}>Cursos 📚</h3>
+                <div className="category-add-form">
+                  <input type="text" placeholder="Añadir categoría..." value={newCatCurso} onChange={(e) => setNewCatCurso(e.target.value)} />
+                  <button className="btn-add-cat" onClick={handleAddCatCurso}>+</button>
+                </div>
+                <div className="category-tags-container">
+                  {categoriasCursos.map(cat => (
+                    <span key={cat} className="category-tag">{cat} <button className="btn-remove-cat" onClick={() => handleRemoveCatCurso(cat)}>×</button></span>
                   ))}
                 </div>
               </div>

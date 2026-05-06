@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc, collection, query } from 'firebase/firestore';
 import './Proyectos.css';
 import './Finanzas.css';
 import './Home.css';
@@ -22,19 +22,22 @@ const Home = ({ userName }) => {
 
   const currentDate = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
-
-  const finanzasData = { balance: 0, ingresos: 0, egresos: 0, ahorros: 0 };
   
-  // --- PROYECTOS ACTIVOS ---
+  // --- ÍNDICE DEL DÍA ACTUAL PARA LA GRÁFICA ---
+  const todayObj = new Date();
+  const startOfYear = new Date(todayObj.getFullYear(), 0, 1);
+  const currentDayIndex = Math.floor((todayObj - startOfYear) / (1000 * 60 * 60 * 24));
+
+  // --- ESTADOS PARA DESCARGAR DATOS REALES DE FIREBASE ---
+  const [transacciones, setTransacciones] = useState([]);
+  const [metas, setMetas] = useState([]);
+  const [notas, setNotas] = useState([]);
+  const [proyectos, setProyectos] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [habitos, setHabitos] = useState([]);
+  const [cursos, setCursos] = useState([]);
+
   const [mostrarMasProyectos, setMostrarMasProyectos] = useState(false);
-  const proyectosActivos = [];
-  const proyectosVisibles = mostrarMasProyectos ? proyectosActivos.slice(0, 6) : proyectosActivos.slice(0, 3);
-
-  // --- METAS DE AHORRO ---
-  const metasAhorro = [];
-
-  // --- NOTAS PENDIENTES ---
-  const notasPendientes = [];
 
   // --- RACHA DE ENTRENAMIENTO ---
   const rachaEntrenamiento = 0;
@@ -50,17 +53,96 @@ const Home = ({ userName }) => {
 
   useEffect(() => {
     if (!auth.currentUser) return;
-    const unsubscribe = onSnapshot(doc(db, 'usuarios', auth.currentUser.uid), (docSnap) => {
+    const uid = auth.currentUser.uid;
+    const unsubs = [];
+
+    // Descargamos las colecciones activas necesarias para el Dashboard
+    const cols = ['transacciones', 'metas', 'notas', 'proyectos', 'areas', 'habitos', 'cursos'];
+    cols.forEach(c => {
+      const q = query(collection(db, 'usuarios', uid, c));
+      const unsub = onSnapshot(q, snap => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        if (c === 'transacciones') setTransacciones(data);
+        if (c === 'metas') setMetas(data);
+        if (c === 'notas') setNotas(data);
+        if (c === 'proyectos') setProyectos(data);
+        if (c === 'areas') setAreas(data);
+        if (c === 'habitos') setHabitos(data);
+        if (c === 'cursos') setCursos(data);
+      });
+      unsubs.push(unsub);
+    });
+
+    const unsubAct = onSnapshot(doc(db, 'usuarios', uid), (docSnap) => {
       if (docSnap.exists() && docSnap.data().activityGraph) {
         setActivityGraph(docSnap.data().activityGraph);
       }
     });
-    return () => unsubscribe();
+    unsubs.push(unsubAct);
+
+    return () => unsubs.forEach(unsub => unsub());
   }, []);
+
+  // --- PROCESAMIENTO DE DATOS PARA EL DASHBOARD ---
+  
+  // Helper de progreso (Proyectos, Áreas)
+  const getProgress = (item) => {
+    if (!item.subCategorias || item.subCategorias.length === 0) return 0;
+    const progs = item.subCategorias.map(sc => {
+      if (!sc.tareas || sc.tareas.length === 0) return 0;
+      return (sc.tareas.filter(t => t.completada).length / sc.tareas.length) * 100;
+    });
+    return Math.round(progs.reduce((a, b) => a + b, 0) / progs.length);
+  };
+
+  const colors = ['var(--soma-purple)', 'var(--soma-orange)', 'var(--soma-yellow)', '#3498db', '#2ecc71'];
+  const todayStr = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
+
+  // Finanzas del Mes
+  let balanceTotal = 0, ingresosMes = 0, egresosMes = 0;
+  transacciones.forEach(t => {
+    if (t.tipo === 'ingreso') balanceTotal += t.monto;
+    if (t.tipo === 'egreso') balanceTotal -= t.monto;
+    const d = new Date(t.createdAt || t.fecha);
+    if (d.getMonth() === todayObj.getMonth() && d.getFullYear() === todayObj.getFullYear()) {
+       if (t.tipo === 'ingreso') ingresosMes += t.monto;
+       if (t.tipo === 'egreso') egresosMes += t.monto;
+    }
+  });
+  const ahorrosTotal = metas.reduce((acc, m) => acc + (m.actual || 0), 0);
+  const finanzasData = { balance: balanceTotal, ingresos: ingresosMes, egresos: egresosMes, ahorros: ahorrosTotal };
+
+  // Bloques Visibles (Máximo 5 para escritorio)
+  const proyectosActivos = proyectos.filter(p => p.estado === 'en progreso' && !p.archivada).map((p, i) => ({
+    id: p.id, titulo: p.titulo, progreso: getProgress(p), color: colors[i % colors.length]
+  })).slice(0, 5);
+  const proyectosVisibles = mostrarMasProyectos ? proyectos.filter(p => p.estado === 'en progreso' && !p.archivada) : proyectosActivos;
+
+  const metasAhorro = metas.slice(0, 5);
+  const notasPendientes = notas.filter(n => !n.archivada).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+  const areasVida = areas.filter(a => a.estado === 'en progreso' && !a.archivada).map((a, i) => ({
+    nombre: a.titulo, progreso: getProgress(a), color: colors[(i + 2) % colors.length]
+  })).slice(0, 5);
+  
+  const habitosHoy = habitos.map(h => ({
+    id: h.id, nombre: h.nombre, completado: !!(h.registros && h.registros[todayStr])
+  })).slice(0, 5);
+
+  // Calculo de total de tareas pendientes en todos los módulos
+  let totalTareas = 0;
+  const countT = (list) => list.forEach(item => {
+     if (!item.archivada && item.estado !== 'completado') {
+       if (item.tareas) totalTareas += item.tareas.filter(t => !t.completada).length;
+       if (item.subCategorias) {
+          item.subCategorias.forEach(sc => { if (sc.tareas) totalTareas += sc.tareas.filter(t => !t.completada).length; });
+       }
+     }
+  });
+  countT(proyectos); countT(areas); countT(cursos); countT(notas);
 
   const toggleActivityLevel = async (index) => {
     const newGraph = [...activityGraph];
-    newGraph[index] = (newGraph[index] + 1) % 3; // Cicla entre 0, 1 y 2
+    newGraph[index] = (newGraph[index] + 1) % 5; // Cicla entre 0, 1, 2, 3 y 4
     setActivityGraph(newGraph); // Actualización visual instantánea
     
     if (auth.currentUser) {
@@ -70,15 +152,19 @@ const Home = ({ userName }) => {
 
   // --- CÁLCULO DEL PORCENTAJE GENERAL DE ACTIVIDAD ---
   const totalScore = activityGraph.reduce((a, b) => a + b, 0);
-  const maxScore = activityGraph.length * 2; // El nivel máximo ahora es 2
+  const maxScore = activityGraph.length * 4; // El nivel máximo ahora es 4
   const activityPercentage = Math.round((totalScore / maxScore) * 100) || 0;
 
-  const areasVida = [];
-
-  const [habitosHoy, setHabitosHoy] = useState([]);
-
-  const toggleHabit = (id) => {
-    setHabitosHoy(prev => prev.map(h => h.id === id ? { ...h, completado: !h.completado } : h));
+  const toggleHabit = async (id) => {
+    const habit = habitos.find(h => h.id === id);
+    if (habit && auth.currentUser) {
+      const newRegistros = { ...(habit.registros || {}) };
+      if (newRegistros[todayStr]) delete newRegistros[todayStr];
+      else newRegistros[todayStr] = true;
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'habitos', id), {
+        registros: newRegistros
+      });
+    }
   };
 
   return (
@@ -90,7 +176,7 @@ const Home = ({ userName }) => {
           <p className="home-date-subtitle">{currentDate}</p>
         </div>
         <div className="header-task-stat">
-          <span className="task-stat-number">12</span>
+          <span className="task-stat-number">{totalTareas}</span>
           <span className="task-stat-label">Tareas Pendientes</span>
         </div>
       </header>
@@ -104,18 +190,26 @@ const Home = ({ userName }) => {
               {activityPercentage}% General
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <div className="activity-block" style={{ width: '12px', height: '12px', cursor: 'default', transform: 'none' }}></div>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Bajo (0%)</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>0%</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <div className="activity-block level-1" style={{ width: '12px', height: '12px', cursor: 'default', transform: 'none' }}></div>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Medio (50%)</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>25%</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <div className="activity-block level-2" style={{ width: '12px', height: '12px', cursor: 'default', transform: 'none' }}></div>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Alto (100%)</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>50%</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <div className="activity-block level-3" style={{ width: '12px', height: '12px', cursor: 'default', transform: 'none' }}></div>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>75%</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <div className="activity-block level-4" style={{ width: '12px', height: '12px', cursor: 'default', transform: 'none' }}></div>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>100%</span>
             </div>
           </div>
         </div>
@@ -133,8 +227,8 @@ const Home = ({ userName }) => {
               {activityGraph.map((level, i) => (
                 <div 
                   key={i} 
-                  className={`activity-block level-${level}`} 
-                  title={`Semana ${Math.floor(i / 7) + 1}, Día ${i % 7 + 1}`}
+                  className={`activity-block level-${level} ${i === currentDayIndex ? 'is-today' : ''}`} 
+                  title={`Semana ${Math.floor(i / 7) + 1}, Día ${i % 7 + 1}${i === currentDayIndex ? ' (Hoy)' : ''}`}
                   onClick={() => toggleActivityLevel(i)}
                 ></div>
               ))}
@@ -178,7 +272,7 @@ const Home = ({ userName }) => {
             {/* Notas Pendientes */}
             <div className="dashboard-card">
               <h3 className="dashboard-card-title">Notas Recientes</h3>
-              <div className="transaction-list" style={{ marginTop: '0.5rem' }}>
+              <div className="transaction-list limit-items-mobile" style={{ marginTop: '0.5rem' }}>
                 {notasPendientes.map(nota => (
                   <div key={nota.id} className="transaction-item" style={{ padding: '0.8rem 1rem' }}>
                     <div className="tx-info">
@@ -200,7 +294,7 @@ const Home = ({ userName }) => {
                   </button>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
+              <div className="limit-items-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
                 {proyectosVisibles.map((proyecto) => (
                   <div key={proyecto.id} className="proyecto-progress">
                     <div className="progress-info">
@@ -219,7 +313,7 @@ const Home = ({ userName }) => {
           {/* Metas de Ahorro */}
           <div className="dashboard-card">
             <h3 className="dashboard-card-title">Metas de Ahorro</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
+            <div className="limit-items-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
               {metasAhorro.map((meta) => {
                 const progreso = Math.min(Math.round((meta.actual / meta.objetivo) * 100), 100);
                 return (
@@ -257,7 +351,7 @@ const Home = ({ userName }) => {
           <div className="dashboard-card">
             <h3 className="dashboard-card-title">Hábitos de Hoy</h3>
             <div className="tareas-list-container" style={{ marginTop: 0 }}>
-              <ul className="tareas-list">
+              <ul className="tareas-list limit-items-mobile">
                 {habitosHoy.map(habit => (
                   <li key={habit.id} className="tarea-item" style={{ backgroundColor: 'rgba(255,255,255,0.02)', padding: '0.6rem', borderRadius: '6px' }}>
                     <label className="tarea-label">
@@ -275,7 +369,7 @@ const Home = ({ userName }) => {
           {/* Áreas de la Vida */}
           <div className="dashboard-card">
             <h3 className="dashboard-card-title">Balance de Áreas</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
+            <div className="limit-items-mobile" style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '0.5rem' }}>
               {areasVida.map((area, index) => (
                 <div key={index} className="proyecto-progress">
                   <div className="progress-info">

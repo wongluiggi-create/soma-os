@@ -534,12 +534,12 @@ select.status-badge option {
   color-scheme: dark;
   cursor: pointer;
   padding: 0;
-  width: 95px; /* Reducimos el ancho del selector */
+  width: 105px; /* Ajustado para que quepa la palabra Indefinido */
 }
 
 .date-picker-modern.small {
   font-size: 0.7rem;
-  width: 85px;
+  width: 95px;
 }
 
 .date-picker-modern.full-width-date {

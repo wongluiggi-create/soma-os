@@ -25,6 +25,7 @@ function App() {
 
   const [categoriasIngreso, setCategoriasIngreso] = useState([]);
   const [categoriasEgreso, setCategoriasEgreso] = useState([]);
+  const [categoriasCursos, setCategoriasCursos] = useState([]);
 
   const [tarjetas, setTarjetas] = useState([]);
 
@@ -44,6 +45,7 @@ function App() {
           setAvatarUrl(data.avatarUrl || '');
           setCategoriasIngreso(data.categoriasIngreso || []);
           setCategoriasEgreso(data.categoriasEgreso || []);
+          setCategoriasCursos(data.categoriasCursos || []);
           setTarjetas(data.tarjetas || []);
           setPeso(data.peso || '');
           setEstatura(data.estatura || '');
@@ -60,6 +62,7 @@ function App() {
         setAvatarUrl('');
         setCategoriasIngreso([]);
         setCategoriasEgreso([]);
+        setCategoriasCursos([]);
         setTarjetas([]);
         setPeso('');
         setEstatura('');
@@ -83,7 +86,7 @@ function App() {
           <Route path="notas" element={<Notas />} />
           <Route path="finanzas" element={<Finanzas categoriasIngreso={categoriasIngreso} categoriasEgreso={categoriasEgreso} tarjetas={tarjetas} setTarjetas={setTarjetas} />} />
           <Route path="habitos" element={<Habitos />} />
-          <Route path="cursos" element={<Cursos categoriasIngreso={categoriasIngreso} categoriasEgreso={categoriasEgreso} />} />
+          <Route path="cursos" element={<Cursos categoriasCursos={categoriasCursos} />} />
           <Route path="areas" element={<Areas />} />
           <Route path="proyectos" element={<Proyectos />} />
           <Route path="fitness" element={<Fitness peso={peso} estatura={estatura} />} />
@@ -96,6 +99,8 @@ function App() {
             setCategoriasIngreso={setCategoriasIngreso} 
             categoriasEgreso={categoriasEgreso} 
             setCategoriasEgreso={setCategoriasEgreso} 
+            categoriasCursos={categoriasCursos}
+            setCategoriasCursos={setCategoriasCursos}
             tarjetas={tarjetas}
             setTarjetas={setTarjetas}
             peso={peso}

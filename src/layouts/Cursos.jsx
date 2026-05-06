@@ -3,14 +3,13 @@ import { auth, db } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import './Proyectos.css'; // Reutilizamos los estilos visuales
 
-const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
+const Cursos = ({ categoriasCursos = [] }) => {
   const [filtro, setFiltro] = useState('todos');
   const [expandedSubcats, setExpandedSubcats] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
 
   const [cursos, setCursos] = useState([]);
-  const todasCategorias = [...categoriasIngreso, ...categoriasEgreso];
 
   // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
   useEffect(() => {
@@ -235,7 +234,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                   <span className="fecha-separator">→</span>
                   <div className="date-badge">
                     <span className="date-label">Fin</span>
-                    <input type="date" className="date-picker-modern" 
+                    <input type={curso.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern" 
                       value={curso.fechaFin || ''} 
                       onChange={(e) => updateCursoDate(curso.id, 'fechaFin', e.target.value)} />
                   </div>
@@ -343,7 +342,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                               <span className="fecha-separator">→</span>
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Fin</span>
-                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => saveSubcatField(curso.id, subCategoria.id, 'fechaFin', e.target.value)} />
+                                <input type={subCategoria.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => saveSubcatField(curso.id, subCategoria.id, 'fechaFin', e.target.value)} />
                               </div>
                             </div>
                           </div>
@@ -383,7 +382,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                   return (
                     <tr key={curso.id}>
                       <td className="archived-title">{curso.titulo}</td>
-                      <td>{curso.fechaInicio} → {curso.fechaFin}</td>
+                      <td>{curso.fechaInicio} → {curso.fechaFin || 'Indefinido'}</td>
                       <td>{progresoGen}%</td>
                       <td><span className={`status-badge ${curso.estado.replace(' ', '-')}`}>{curso.estado}</span></td>
                       <td>
@@ -419,7 +418,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                   <label>Categoría</label>
                   <select value={newCursoForm.categoria} onChange={e => setNewCursoForm(prev => ({ ...prev, categoria: e.target.value }))} className="modal-select">
                     <option value="">Sin categoría</option>
-                    {todasCategorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    {categoriasCursos.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
                 <div className="input-group">
@@ -447,7 +446,7 @@ const Cursos = ({ categoriasIngreso = [], categoriasEgreso = [] }) => {
                   <label>Fecha de Fin</label>
                   <div className="date-badge">
                     <input 
-                      type="date" 
+                      type={newCursoForm.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
                       className="date-picker-modern full-width-date" 
                       value={newCursoForm.fechaFin} 
                       onChange={e => setNewCursoForm(prev => ({ ...prev, fechaFin: e.target.value }))} 

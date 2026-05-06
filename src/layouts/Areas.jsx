@@ -226,7 +226,7 @@ const Areas = () => {
                   <span className="fecha-separator">→</span>
                   <div className="date-badge">
                     <span className="date-label">Fin</span>
-                    <input type="date" className="date-picker-modern" 
+                    <input type={area.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern" 
                       value={area.fechaFin || ''} 
                       onChange={(e) => updateAreaDate(area.id, 'fechaFin', e.target.value)} />
                   </div>
@@ -334,7 +334,7 @@ const Areas = () => {
                               <span className="fecha-separator">→</span>
                               <div className="date-badge subcat-badge">
                                 <span className="date-label">Fin</span>
-                                <input type="date" className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => saveSubcatField(area.id, subCategoria.id, 'fechaFin', e.target.value)} />
+                                <input type={subCategoria.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern small" value={subCategoria.fechaFin || ''} onChange={(e) => saveSubcatField(area.id, subCategoria.id, 'fechaFin', e.target.value)} />
                               </div>
                             </div>
                           </div>
@@ -374,7 +374,7 @@ const Areas = () => {
                   return (
                     <tr key={area.id}>
                       <td className="archived-title">{area.titulo}</td>
-                      <td>{area.fechaInicio} → {area.fechaFin}</td>
+                      <td>{area.fechaInicio} → {area.fechaFin || 'Indefinido'}</td>
                       <td>{progresoGen}%</td>
                       <td><span className={`status-badge ${area.estado.replace(' ', '-')}`}>{area.estado}</span></td>
                       <td>
@@ -415,7 +415,7 @@ const Areas = () => {
               </div>
               <div className="fecha-inputs-row">
                 <div className="input-group"><label>Fecha de Inicio</label><div className="date-badge"><input type="date" className="date-picker-modern full-width-date" value={newAreaForm.fechaInicio} onChange={e => setNewAreaForm({...newAreaForm, fechaInicio: e.target.value})} /></div></div>
-                <div className="input-group"><label>Fecha de Fin</label><div className="date-badge"><input type="date" className="date-picker-modern full-width-date" value={newAreaForm.fechaFin} onChange={e => setNewAreaForm({...newAreaForm, fechaFin: e.target.value})} /></div></div>
+                <div className="input-group"><label>Fecha de Fin</label><div className="date-badge"><input type={newAreaForm.fechaFin ? "date" : "text"} placeholder="Indefinido" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} className="date-picker-modern full-width-date" value={newAreaForm.fechaFin} onChange={e => setNewAreaForm({...newAreaForm, fechaFin: e.target.value})} /></div></div>
               </div>
             </div>
             <div className="modal-actions">
