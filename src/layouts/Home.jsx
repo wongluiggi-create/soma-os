@@ -26,7 +26,23 @@ const Home = ({ userName }) => {
   // --- ÍNDICE DEL DÍA ACTUAL PARA LA GRÁFICA ---
   const todayObj = new Date();
   const startOfYear = new Date(todayObj.getFullYear(), 0, 1);
-  const currentDayIndex = Math.floor((todayObj - startOfYear) / (1000 * 60 * 60 * 24));
+  
+  // Ajustar para que el índice 0 sea siempre lunes, alineándose con el eje Y
+  const dayOffset = startOfYear.getDay() === 0 ? 6 : startOfYear.getDay() - 1;
+  const graphStartDate = new Date(startOfYear);
+  graphStartDate.setDate(startOfYear.getDate() - dayOffset);
+  
+  const utcToday = Date.UTC(todayObj.getFullYear(), todayObj.getMonth(), todayObj.getDate());
+  const utcGraphStart = Date.UTC(graphStartDate.getFullYear(), graphStartDate.getMonth(), graphStartDate.getDate());
+  const currentDayIndex = Math.floor((utcToday - utcGraphStart) / (1000 * 60 * 60 * 24));
+
+  const getTooltipText = (i) => {
+    const d = new Date(utcGraphStart + i * (1000 * 60 * 60 * 24));
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dayNamesFull = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    return `${dayNamesFull[i % 7]} ${dd}/${mm}${i === currentDayIndex ? ' (Hoy)' : ''}`;
+  };
 
   // --- ESTADOS PARA DESCARGAR DATOS REALES DE FIREBASE ---
   const [transacciones, setTransacciones] = useState([]);
@@ -228,7 +244,7 @@ const Home = ({ userName }) => {
                 <div 
                   key={i} 
                   className={`activity-block level-${level} ${i === currentDayIndex ? 'is-today' : ''}`} 
-                  title={`Semana ${Math.floor(i / 7) + 1}, Día ${i % 7 + 1}${i === currentDayIndex ? ' (Hoy)' : ''}`}
+                  title={getTooltipText(i)}
                   onClick={() => toggleActivityLevel(i)}
                 ></div>
               ))}
