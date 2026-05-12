@@ -363,3 +363,302 @@
   border-color: var(--soma-purple);
   font-weight: bold;
 }
+
+/* --- TABS DE FITNESS --- */
+.fitness-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0;
+}
+
+.fitness-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.fitness-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.fitness-tab-btn.active {
+  color: var(--soma-orange);
+  border-bottom-color: var(--soma-orange);
+  font-weight: 600;
+}
+
+/* --- BARRA DE NAVEGACIÓN DE FECHA --- */
+.date-nav-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.date-display {
+  flex: 1;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-transform: capitalize;
+  text-align: center;
+  min-width: 0;
+}
+
+.btn-nav {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-nav:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-today {
+  background: rgba(240, 127, 18, 0.12);
+  border: 1px solid rgba(240, 127, 18, 0.4);
+  color: var(--soma-orange);
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-today:hover {
+  background: rgba(240, 127, 18, 0.22);
+}
+
+/* --- GRID DE GRÁFICAS DE NUTRICIÓN --- */
+.nutrition-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .nutrition-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- TARJETA DE GRÁFICA CIRCULAR --- */
+.chart-ring-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(162, 146, 197, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.chart-card-title {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  text-align: center;
+}
+
+.chart-ring-note {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* --- LEYENDA DONA --- */
+.donut-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
+.donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.donut-legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* --- TARJETA DE BARRAS DE MACROS --- */
+.macro-bars-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(162, 146, 197, 0.2);
+  border-radius: 12px;
+  padding: 1.2rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.macro-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+}
+
+.macro-bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.macro-bar-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.macro-bar-name {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.macro-bar-value {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.macro-bar-track {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.macro-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* --- FORMULARIO DE METAS --- */
+.goals-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+@media (max-width: 500px) {
+  .goals-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- REGISTRO DIARIO --- */
+.daily-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.comida-log-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.comida-log-item:hover {
+  border-color: rgba(162, 146, 197, 0.25);
+}
+
+.comida-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.comida-log-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.comida-log-kcal {
+  font-size: 0.85rem;
+  color: var(--soma-orange);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.comida-log-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0.2rem 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.comida-log-macros {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.3rem;
+}
+
+/* --- ESTADO VACÍO --- */
+.empty-log-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.empty-log-state span {
+  font-size: 0.78rem;
+  opacity: 0.7;
+}
