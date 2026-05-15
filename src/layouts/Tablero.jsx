@@ -235,7 +235,7 @@ const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, act
 };
 
 // ── Nodo de Texto (con modo lista integrado) ──────────────
-const TextNode = ({ id, data, selected, xPos, yPos }) => {
+const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) => {
   const { updateNodeData, deleteElements, setNodes } = useReactFlow();
   const [editing, setEditing] = useState(data.autoFocus ?? false);
   const [text, setText] = useState(data.label);
@@ -251,13 +251,13 @@ const TextNode = ({ id, data, selected, xPos, yPos }) => {
       {
         id: `text-${Date.now()}`,
         type: 'textoNode',
-        position: { x: xPos + 24, y: yPos + 24 },
+        position: { x: positionAbsoluteX + 24, y: positionAbsoluteY + 24 },
         zIndex: 1,
         selected: true,
         data: { ...data, autoFocus: false },
       },
     ]);
-  }, [xPos, yPos, data, setNodes]);
+  }, [positionAbsoluteX, positionAbsoluteY, data, setNodes]);
 
   // Clear autoFocus flag and open textarea on first render
   useEffect(() => {
@@ -443,7 +443,7 @@ const SHAPE_COLORS = [
 ];
 
 // ── Nodo de Forma (área) ──────────────────────────────────
-const ShapeNode = ({ id, data, selected, xPos, yPos }) => {
+const ShapeNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) => {
   const { updateNodeData, deleteElements, setNodes } = useReactFlow();
   const color = data.color || '#a292c5';
 
@@ -453,14 +453,14 @@ const ShapeNode = ({ id, data, selected, xPos, yPos }) => {
       {
         id: `shape-${Date.now()}`,
         type: 'formaNode',
-        position: { x: xPos + 24, y: yPos + 24 },
+        position: { x: positionAbsoluteX + 24, y: positionAbsoluteY + 24 },
         style: { width: 220, height: 140 },
         zIndex: 0,
         selected: true,
         data: { ...data },
       },
     ]);
-  }, [xPos, yPos, data, setNodes]);
+  }, [positionAbsoluteX, positionAbsoluteY, data, setNodes]);
 
   return (
     <div
