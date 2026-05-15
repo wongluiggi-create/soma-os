@@ -260,6 +260,8 @@
   transition: border-color 0.18s, box-shadow 0.18s;
   user-select: none;
   box-sizing: border-box;
+  font-synthesis: none;
+  -webkit-font-synthesis: none;
 }
 
 .t-node:active { cursor: grabbing; }
@@ -368,6 +370,7 @@
 .t-node-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
 
 .t-node-btn-delete:hover { background: rgba(220,60,60,0.13); color: #e05555; }
+.t-node-btn-dup:hover { background: rgba(162,146,197,0.15); color: var(--soma-purple); }
 
 .t-fmt-btn { min-width: 18px; }
 
@@ -558,7 +561,6 @@
 .t-lista-titulo {
   flex: 1;
   font-size: 0.8rem;
-  font-weight: 600;
   color: var(--text-primary);
   cursor: text;
   min-width: 0;
@@ -571,7 +573,6 @@ input.t-lista-titulo {
   outline: none;
   font-family: inherit;
   font-size: 0.8rem;
-  font-weight: 600;
   color: var(--text-primary);
   width: 100%;
   padding: 0;

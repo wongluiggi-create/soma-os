@@ -28,6 +28,13 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconDuplicate = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+);
+
 // ── Texto editable en línea (doble clic para editar) ─────
 const EditableInline = ({ value, placeholder, className, style, onSave, onFocus }) => {
   const [editing, setEditing] = useState(false);
@@ -81,7 +88,7 @@ const FONT_WEIGHTS = [
   { value: 900, label: 'Black'     },
 ];
 
-const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, activeItemId }) => {
+const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, activeItemId, onDuplicate }) => {
   const fmt = data.fmt || {};
   const boxed = data.boxed ?? false;
   const listMode = data.listMode ?? false;
@@ -121,6 +128,13 @@ const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, act
 
   return (
     <div className="t-format-bar" onMouseDown={(e) => e.stopPropagation()}>
+      {/* Duplicar */}
+      <button className="t-node-btn t-node-btn-dup"
+        onClick={(e) => { e.stopPropagation(); onDuplicate(); }}
+        title="Duplicar">
+        <IconDuplicate />
+      </button>
+
       {/* Eliminar */}
       <button className="t-node-btn t-node-btn-delete"
         onClick={(e) => { e.stopPropagation(); deleteElements({ nodes: [{ id }] }); }}
@@ -221,7 +235,7 @@ const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, act
 };
 
 // ── Nodo de Texto (con modo lista integrado) ──────────────
-const TextNode = ({ id, data, selected }) => {
+const TextNode = ({ id, data, selected, xPos, yPos }) => {
   const { updateNodeData, deleteElements, setNodes } = useReactFlow();
   const [editing, setEditing] = useState(data.autoFocus ?? false);
   const [text, setText] = useState(data.label);
@@ -230,6 +244,20 @@ const TextNode = ({ id, data, selected }) => {
   const fmt = data.fmt || {};
   const boxed = data.boxed ?? false;
   const listMode = data.listMode ?? false;
+
+  const handleDuplicate = useCallback(() => {
+    setNodes(nds => [
+      ...nds.map(n => ({ ...n, selected: false })),
+      {
+        id: `text-${Date.now()}`,
+        type: 'textoNode',
+        position: { x: xPos + 24, y: yPos + 24 },
+        zIndex: 1,
+        selected: true,
+        data: { ...data, autoFocus: false },
+      },
+    ]);
+  }, [xPos, yPos, data, setNodes]);
 
   // Clear autoFocus flag and open textarea on first render
   useEffect(() => {
@@ -243,6 +271,7 @@ const TextNode = ({ id, data, selected }) => {
 
   // Applied to plain text mode
   const textStyle = {
+    fontFamily: "'Grift', system-ui, sans-serif",
     fontWeight: fmt.weight || 400,
     fontStyle: fmt.italic ? 'italic' : 'normal',
     fontSize: `${fmt.size || 14}px`,
@@ -252,6 +281,7 @@ const TextNode = ({ id, data, selected }) => {
 
   // Applied to list items — same formatting but alignment defaults left
   const listTextStyle = {
+    fontFamily: "'Grift', system-ui, sans-serif",
     fontWeight: fmt.weight || 400,
     fontStyle: fmt.italic ? 'italic' : 'normal',
     fontSize: `${fmt.size || 13}px`,
@@ -312,6 +342,7 @@ const TextNode = ({ id, data, selected }) => {
           updateNodeData={updateNodeData}
           setNodes={setNodes}
           activeItemId={activeItemId}
+          onDuplicate={handleDuplicate}
         />
       )}
 
@@ -412,9 +443,24 @@ const SHAPE_COLORS = [
 ];
 
 // ── Nodo de Forma (área) ──────────────────────────────────
-const ShapeNode = ({ id, data, selected }) => {
-  const { updateNodeData, deleteElements } = useReactFlow();
+const ShapeNode = ({ id, data, selected, xPos, yPos }) => {
+  const { updateNodeData, deleteElements, setNodes } = useReactFlow();
   const color = data.color || '#a292c5';
+
+  const handleDuplicate = useCallback(() => {
+    setNodes(nds => [
+      ...nds.map(n => ({ ...n, selected: false })),
+      {
+        id: `shape-${Date.now()}`,
+        type: 'formaNode',
+        position: { x: xPos + 24, y: yPos + 24 },
+        style: { width: 220, height: 140 },
+        zIndex: 0,
+        selected: true,
+        data: { ...data },
+      },
+    ]);
+  }, [xPos, yPos, data, setNodes]);
 
   return (
     <div
@@ -441,6 +487,11 @@ const ShapeNode = ({ id, data, selected }) => {
 
       {selected && (
         <div className="t-shape-actions" onMouseDown={(e) => e.stopPropagation()}>
+          <button className="t-node-btn t-node-btn-dup"
+            onClick={(e) => { e.stopPropagation(); handleDuplicate(); }}
+            title="Duplicar">
+            <IconDuplicate />
+          </button>
           <button className="t-node-btn t-node-btn-delete"
             onClick={(e) => { e.stopPropagation(); deleteElements({ nodes: [{ id }] }); }}
             title="Eliminar">
