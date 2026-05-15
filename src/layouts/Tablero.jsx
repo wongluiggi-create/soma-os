@@ -540,31 +540,54 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
   const readyToSave = useRef(false);
   const saveTimer = useRef(null);
   const mountedRef = useRef(true);
-  const nodesRef = useRef(nodes);
-  const edgesRef = useRef(edges);
   const { screenToFlowPosition, deleteElements } = useReactFlow();
+
+  // Clave única en localStorage para este tablero
+  const localKey = `tablero_draft_${entityType}_${entityId}`;
 
   useEffect(() => {
     mountedRef.current = true;
     return () => { mountedRef.current = false; };
   }, []);
 
-  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
-  useEffect(() => { edgesRef.current = edges; }, [edges]);
-
+  // ── Carga ──────────────────────────────────────────────
+  // Estrategia: si hay un borrador local (de un refresh interrumpido),
+  // úsalo y sincroniza a Firestore. Si no, carga desde Firestore.
   useEffect(() => {
     if (!auth.currentUser || !entityId) return;
     const uid = auth.currentUser.uid;
+
     getDoc(doc(db, 'usuarios', uid, entityType, entityId)).then((snap) => {
-      if (snap.exists() && snap.data()?.tablero) {
+      const localRaw = localStorage.getItem(localKey);
+
+      if (localRaw) {
+        try {
+          const { nodes: n = [], edges: e = [] } = JSON.parse(localRaw);
+          setNodes(n);
+          setEdges(e);
+          // Sincroniza el borrador local a Firestore en background
+          updateDoc(doc(db, 'usuarios', uid, entityType, entityId), {
+            tablero: { nodes: n, edges: e },
+          }).then(() => localStorage.removeItem(localKey)).catch(() => {});
+        } catch {
+          // Borrador corrupto — descartarlo y usar Firestore
+          localStorage.removeItem(localKey);
+          if (snap.exists() && snap.data()?.tablero) {
+            const { nodes: n = [], edges: e = [] } = snap.data().tablero;
+            setNodes(n); setEdges(e);
+          }
+        }
+      } else if (snap.exists() && snap.data()?.tablero) {
         const { nodes: n = [], edges: e = [] } = snap.data().tablero;
         setNodes(n);
         setEdges(e);
       }
+
       setTimeout(() => { readyToSave.current = true; }, 400);
     });
-  }, [entityId, entityType, setNodes, setEdges]);
+  }, [entityId, entityType, localKey, setNodes, setEdges]);
 
+  // ── Guardado ───────────────────────────────────────────
   const doSave = useCallback(async (ns, es) => {
     if (!auth.currentUser) return;
     try {
@@ -572,12 +595,22 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
         doc(db, 'usuarios', auth.currentUser.uid, entityType, entityId),
         { tablero: { nodes: ns.map(serializeNode), edges: es.map(serializeEdge) } }
       );
+      // Sincronización exitosa: borrar borrador local
+      localStorage.removeItem(localKey);
       if (mountedRef.current) setSaveStatus('saved');
-    } catch { if (mountedRef.current) setSaveStatus('idle'); }
-  }, [entityId, entityType]);
+    } catch {
+      if (mountedRef.current) setSaveStatus('idle');
+    }
+  }, [entityId, entityType, localKey]);
 
   useEffect(() => {
     if (!readyToSave.current) return;
+
+    // 1. Guardar en localStorage INMEDIATAMENTE (sobrevive al refresh)
+    const draft = { nodes: nodes.map(serializeNode), edges: edges.map(serializeEdge) };
+    localStorage.setItem(localKey, JSON.stringify(draft));
+
+    // 2. Sincronizar a Firestore con debounce
     clearTimeout(saveTimer.current);
     if (mountedRef.current) setSaveStatus('idle');
     const snapNodes = nodes;
@@ -587,17 +620,22 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
       if (mountedRef.current) setSaveStatus('saving');
       doSave(snapNodes, snapEdges);
     }, 1500);
-    // No cancelamos el timer en cleanup para que el último guardado
-    // sobreviva si el usuario cierra el tablero antes de los 1.5s
-  }, [nodes, edges, doSave]);
+  }, [nodes, edges, doSave, localKey]);
 
-  // Guardado inmediato al desmontar si hay cambios pendientes
+  // Al desmontar (cerrar tablero): forzar sync del borrador local si queda pendiente
   useEffect(() => {
     return () => {
       clearTimeout(saveTimer.current);
-      if (readyToSave.current && auth.currentUser) {
-        doSave(nodesRef.current, edgesRef.current);
-      }
+      if (!readyToSave.current || !auth.currentUser) return;
+      const localRaw = localStorage.getItem(localKey);
+      if (!localRaw) return;
+      try {
+        const { nodes: n, edges: e } = JSON.parse(localRaw);
+        updateDoc(
+          doc(db, 'usuarios', auth.currentUser.uid, entityType, entityId),
+          { tablero: { nodes: n, edges: e } }
+        ).then(() => localStorage.removeItem(localKey)).catch(() => {});
+      } catch { /* ignore */ }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
