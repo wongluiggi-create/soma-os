@@ -318,6 +318,19 @@
 .t-text-plain:hover .t-placeholder,
 .t-text-plain.t-selected .t-placeholder { opacity: 1; }
 
+/* Wrapper interno que contiene el contenido y recorta el overflow
+   sin afectar al format bar (que es hermano, positioned absolute) */
+.t-node-body {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 /* Textarea de edición */
 .t-node-input {
   background: transparent;

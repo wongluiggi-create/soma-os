@@ -236,7 +236,7 @@ const TextFormatBar = ({ id, data, deleteElements, updateNodeData, setNodes, act
 
 // ── Nodo de Texto (con modo lista integrado) ──────────────
 const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) => {
-  const { updateNodeData, deleteElements, setNodes } = useReactFlow();
+  const { updateNodeData, deleteElements, setNodes, getNode } = useReactFlow();
   const [editing, setEditing] = useState(data.autoFocus ?? false);
   const [text, setText] = useState(data.label);
   const [activeItemId, setActiveItemId] = useState(null);
@@ -246,6 +246,7 @@ const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) 
   const listMode = data.listMode ?? false;
 
   const handleDuplicate = useCallback(() => {
+    const src = getNode(id);
     setNodes(nds => [
       ...nds.map(n => ({ ...n, selected: false })),
       {
@@ -255,9 +256,12 @@ const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) 
         zIndex: 1,
         selected: true,
         data: { ...data, autoFocus: false },
+        ...(src?.style  && { style:  { ...src.style  } }),
+        ...(src?.width  !== undefined && { width:  src.width  }),
+        ...(src?.height !== undefined && { height: src.height }),
       },
     ]);
-  }, [positionAbsoluteX, positionAbsoluteY, data, setNodes]);
+  }, [id, positionAbsoluteX, positionAbsoluteY, data, setNodes, getNode]);
 
   // Clear autoFocus flag and open textarea on first render
   useEffect(() => {
@@ -346,6 +350,7 @@ const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) 
         />
       )}
 
+      <div className="t-node-body">
       {listMode ? (
         <div className="t-lista-content">
           {/* Título con toggle de la lista completa */}
@@ -424,6 +429,7 @@ const TextNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY }) 
           {text || <span className="t-placeholder">Doble clic para editar</span>}
         </div>
       )}
+      </div>
 
       <Handle id="bottom" type="source" position={Position.Bottom} className="t-handle" />
       <Handle id="right"  type="source" position={Position.Right}  className="t-handle" />
