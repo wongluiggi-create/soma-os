@@ -539,7 +539,18 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
   const [bgVariant, setBgVariant] = useState('dots');
   const readyToSave = useRef(false);
   const saveTimer = useRef(null);
+  const mountedRef = useRef(true);
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
   const { screenToFlowPosition, deleteElements } = useReactFlow();
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
+  useEffect(() => { edgesRef.current = edges; }, [edges]);
 
   useEffect(() => {
     if (!auth.currentUser || !entityId) return;
@@ -554,23 +565,42 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
     });
   }, [entityId, entityType, setNodes, setEdges]);
 
+  const doSave = useCallback(async (ns, es) => {
+    if (!auth.currentUser) return;
+    try {
+      await updateDoc(
+        doc(db, 'usuarios', auth.currentUser.uid, entityType, entityId),
+        { tablero: { nodes: ns.map(serializeNode), edges: es.map(serializeEdge) } }
+      );
+      if (mountedRef.current) setSaveStatus('saved');
+    } catch { if (mountedRef.current) setSaveStatus('idle'); }
+  }, [entityId, entityType]);
+
   useEffect(() => {
     if (!readyToSave.current) return;
     clearTimeout(saveTimer.current);
-    setSaveStatus('idle');
-    saveTimer.current = setTimeout(async () => {
-      if (!auth.currentUser || !readyToSave.current) return;
-      setSaveStatus('saving');
-      try {
-        await updateDoc(
-          doc(db, 'usuarios', auth.currentUser.uid, entityType, entityId),
-          { tablero: { nodes: nodes.map(serializeNode), edges: edges.map(serializeEdge) } }
-        );
-        setSaveStatus('saved');
-      } catch { setSaveStatus('idle'); }
+    if (mountedRef.current) setSaveStatus('idle');
+    const snapNodes = nodes;
+    const snapEdges = edges;
+    saveTimer.current = setTimeout(() => {
+      if (!readyToSave.current) return;
+      if (mountedRef.current) setSaveStatus('saving');
+      doSave(snapNodes, snapEdges);
     }, 1500);
-    return () => clearTimeout(saveTimer.current);
-  }, [nodes, edges, entityId, entityType]);
+    // No cancelamos el timer en cleanup para que el último guardado
+    // sobreviva si el usuario cierra el tablero antes de los 1.5s
+  }, [nodes, edges, doSave]);
+
+  // Guardado inmediato al desmontar si hay cambios pendientes
+  useEffect(() => {
+    return () => {
+      clearTimeout(saveTimer.current);
+      if (readyToSave.current && auth.currentUser) {
+        doSave(nodesRef.current, edgesRef.current);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge({ ...params, animated: false }, eds)),

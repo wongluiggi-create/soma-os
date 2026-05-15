@@ -117,6 +117,14 @@
   line-height: 1.4;
 }
 
+.curso-title-area {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
+}
+
 .proyecto-card-main-info {
   display: flex;
   flex-direction: column;

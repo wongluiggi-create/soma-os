@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(findstr /i \"deploy\\\\|build\\\\|scripts\")",
+      "Bash(npm run *)"
+    ]
+  }
+}

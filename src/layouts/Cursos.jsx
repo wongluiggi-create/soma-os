@@ -192,15 +192,15 @@ const Cursos = ({ categoriasCursos = [] }) => {
             <div key={curso.id} className="proyecto-card">
               <div className="proyecto-card-main-info">
                 <div className="proyecto-card-header">
-                  <h3>{curso.titulo}</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div className="curso-title-area">
+                    <h3>{curso.titulo}</h3>
                     {curso.categoria && (
-                      <span className="status-badge" style={{ backgroundColor: 'rgba(162, 146, 197, 0.1)', color: 'var(--soma-purple)', border: '1px solid rgba(162, 146, 197, 0.2)' }}>
+                      <span className="status-badge" style={{ backgroundColor: 'rgba(162, 146, 197, 0.1)', color: 'var(--soma-purple)', border: '1px solid rgba(162, 146, 197, 0.2)', alignSelf: 'flex-start' }}>
                         {curso.categoria}
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                     <button
                       className="btn-tablero"
                       title="Abrir tablero de diagramas"
