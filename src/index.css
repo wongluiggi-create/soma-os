@@ -1,31 +1,112 @@
-/* Importación de la fuente Grift temporalmente comentada hasta tener los archivos reales
-   Descomenta esto cuando pongas los archivos .woff y .woff2 en src/assets/fonts/ */
-/* @font-face {
-  font-family: 'Grift';
-  src: url('./assets/fonts/Grift-Light.woff2') format('woff2'),
-       url('./assets/fonts/Grift-Light.woff') format('woff');
-  font-weight: 300;
-  font-style: normal;
-  font-display: swap;
-}
-
+/* ── Fuente Grift (Latinotype) ────────────────────────────── */
 @font-face {
   font-family: 'Grift';
-  src: url('./assets/fonts/Grift-Regular.woff2') format('woff2'),
-       url('./assets/fonts/Grift-Regular.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Thin.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Thin.woff') format('woff');
+  font-weight: 100; font-style: normal; font-display: swap;
 }
-
 @font-face {
   font-family: 'Grift';
-  src: url('./assets/fonts/Grift-Bold.woff2') format('woff2'),
-       url('./assets/fonts/Grift-Bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-} */
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ThinItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ThinItalic.woff') format('woff');
+  font-weight: 100; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraLight.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraLight.woff') format('woff');
+  font-weight: 200; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraLightItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraLightItalic.woff') format('woff');
+  font-weight: 200; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Light.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Light.woff') format('woff');
+  font-weight: 300; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-LightItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-LightItalic.woff') format('woff');
+  font-weight: 300; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Regular.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Regular.woff') format('woff');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Italic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Italic.woff') format('woff');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Medium.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Medium.woff') format('woff');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-MediumItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-MediumItalic.woff') format('woff');
+  font-weight: 500; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-SemiBold.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-SemiBold.woff') format('woff');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-SemiBoldItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-SemiBoldItalic.woff') format('woff');
+  font-weight: 600; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Bold.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Bold.woff') format('woff');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-BoldItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-BoldItalic.woff') format('woff');
+  font-weight: 700; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraBold.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraBold.woff') format('woff');
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraBoldItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-ExtraBoldItalic.woff') format('woff');
+  font-weight: 800; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Black.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-Black.woff') format('woff');
+  font-weight: 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Grift';
+  src: url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-BlackItalic.woff2') format('woff2'),
+       url('./assets/fonts/grift-2026-04-07-06-24-15-utc/Web-TT/Grift-BlackItalic.woff') format('woff');
+  font-weight: 900; font-style: italic; font-display: swap;
+}
 
 :root {
   /* Paleta de Soma OS */
@@ -42,11 +123,12 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif; /* Fallback a fuente del sistema por ahora */
-  font-weight: 300; /* Tipografía más delgada por defecto */
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 300;
   background-color: var(--bg-main);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {

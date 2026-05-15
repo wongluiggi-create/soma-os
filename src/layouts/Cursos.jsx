@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import Tablero from './Tablero';
 import './Proyectos.css'; // Reutilizamos los estilos visuales
 
 const Cursos = ({ categoriasCursos = [] }) => {
@@ -8,6 +9,7 @@ const Cursos = ({ categoriasCursos = [] }) => {
   const [expandedSubcats, setExpandedSubcats] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newCursoForm, setNewCursoForm] = useState({ titulo: '', estado: 'en progreso', fechaInicio: '', fechaFin: '', categoria: '' });
+  const [tableroOpen, setTableroOpen] = useState(null); // { id, titulo }
 
   const [cursos, setCursos] = useState([]);
 
@@ -199,7 +201,15 @@ const Cursos = ({ categoriasCursos = [] }) => {
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <select 
+                    <button
+                      className="btn-tablero"
+                      title="Abrir tablero de diagramas"
+                      onClick={() => setTableroOpen({ id: curso.id, titulo: curso.titulo })}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                      Tablero
+                    </button>
+                    <select
                       className={`status-badge ${curso.estado.replace(' ', '-')}`}
                       value={curso.estado}
                       onChange={(e) => updateCursoEstado(curso.id, e.target.value)}
@@ -402,6 +412,16 @@ const Cursos = ({ categoriasCursos = [] }) => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* Modal Tablero de Diagramas */}
+      {tableroOpen && (
+        <Tablero
+          entityId={tableroOpen.id}
+          entityType="cursos"
+          titulo={tableroOpen.titulo}
+          onClose={() => setTableroOpen(null)}
+        />
       )}
 
       {isModalOpen && (

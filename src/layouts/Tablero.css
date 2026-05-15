@@ -1,0 +1,738 @@
+/* ============================================
+   TABLERO — Modal de Diagramas tipo Miro
+   ============================================ */
+
+/* Overlay de fondo */
+.tablero-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: t-fadeIn 0.18s ease;
+}
+
+@keyframes t-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Modal principal */
+.tablero-modal {
+  width: calc(100vw - 2.5rem);
+  height: calc(100vh - 2.5rem);
+  background: #1e2124;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  animation: t-slideIn 0.2s ease;
+  font-family: 'Grift', system-ui, sans-serif;
+}
+
+@keyframes t-slideIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ---- Header ---- */
+.tablero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.tablero-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  opacity: 0.9;
+}
+
+.tablero-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.t-status {
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.t-status.saving { color: var(--text-secondary); }
+.t-status.saved  { color: #5cc86e; }
+
+.tablero-close {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.tablero-close:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ---- Toolbar ---- */
+.tablero-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.t-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  padding: 0.28rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.t-btn:hover {
+  background: rgba(240, 127, 18, 0.12);
+  border-color: rgba(240, 127, 18, 0.4);
+  color: var(--soma-orange);
+}
+
+.t-btn-danger:hover {
+  background: rgba(220, 60, 60, 0.12);
+  border-color: rgba(220, 60, 60, 0.4);
+  color: #e05555;
+}
+
+.t-sep {
+  width: 1px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 0.1rem;
+  flex-shrink: 0;
+}
+
+/* Toggle de fondo (puntos / líneas / ninguno) */
+.t-bg-toggle {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.t-bg-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  line-height: 1;
+}
+
+.t-bg-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.t-bg-btn.active {
+  background: rgba(162, 146, 197, 0.18);
+  color: var(--soma-purple);
+}
+
+.t-hint {
+  font-size: 0.69rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+  opacity: 0.7;
+}
+
+/* ---- Canvas ---- */
+.tablero-canvas {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Override colores internos de React Flow */
+.tablero-canvas .react-flow {
+  background: #181b1e;
+}
+
+.tablero-canvas .react-flow__controls {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.tablero-canvas .react-flow__controls-button {
+  background: #2a2e32;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  fill: var(--text-secondary);
+}
+
+.tablero-canvas .react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  fill: var(--text-primary);
+}
+
+.tablero-canvas .react-flow__edge-path {
+  stroke: rgba(162, 146, 197, 0.55);
+  stroke-width: 1.8;
+}
+
+.tablero-canvas .react-flow__edge-interaction {
+  stroke-width: 20;
+  cursor: pointer;
+}
+
+.tablero-canvas .react-flow__edge:hover .react-flow__edge-path {
+  stroke: rgba(162, 146, 197, 0.85);
+  stroke-width: 2.2;
+}
+
+.tablero-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--soma-purple);
+  stroke-width: 2.2;
+}
+
+.tablero-canvas .react-flow__connection-path {
+  stroke: var(--soma-orange);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
+/* ============================================
+   NODOS DE TEXTO
+   ============================================ */
+
+.t-node {
+  background: #2a2e32;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  padding: 0.55rem 0.8rem;
+  min-width: 80px;
+  min-height: 32px;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.t-node:active { cursor: grabbing; }
+
+.t-node.t-selected {
+  border-color: var(--soma-purple);
+  box-shadow: 0 0 0 2px rgba(162, 146, 197, 0.18);
+}
+
+/* Sin recuadro (por defecto) */
+.t-text-plain {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0.25rem 0.4rem;
+}
+
+.t-text-plain:hover {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-style: dashed !important;
+}
+
+.t-text-plain.t-selected {
+  border-color: rgba(162, 146, 197, 0.45) !important;
+  border-style: dashed !important;
+  box-shadow: none !important;
+}
+
+/* Con recuadro */
+.t-text-boxed {
+  background: #2a2e32;
+  border-color: rgba(255, 255, 255, 0.16);
+  padding: 0.55rem 0.8rem;
+}
+
+/* Contenido */
+.t-node-label {
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  pointer-events: none;
+  width: 100%;
+  flex: 1;
+}
+
+.t-placeholder {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.72rem;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.t-text-plain .t-placeholder { opacity: 0; transition: opacity 0.15s; }
+.t-text-plain:hover .t-placeholder,
+.t-text-plain.t-selected .t-placeholder { opacity: 1; }
+
+/* Textarea de edición */
+.t-node-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  flex: 1;
+  min-height: 32px;
+  resize: none;
+  line-height: 1.45;
+}
+
+/* ============================================
+   BARRA DE FORMATO (texto)
+   ============================================ */
+
+.t-format-bar {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: #1a1d20;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  padding: 2px 4px;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.t-node-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.t-node-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+
+.t-node-btn-delete:hover { background: rgba(220,60,60,0.13); color: #e05555; }
+
+.t-fmt-btn { min-width: 18px; }
+
+.t-fmt-btn.active {
+  background: rgba(162, 146, 197, 0.18);
+  color: var(--soma-purple);
+}
+
+/* Separador vertical */
+.t-sep-v {
+  display: inline-block;
+  width: 1px;
+  height: 13px;
+  background: rgba(255, 255, 255, 0.09);
+  margin: 0 1px;
+  flex-shrink: 0;
+}
+
+/* Selector de tamaño de fuente */
+.t-size-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 3px;
+  font-size: 0.68rem;
+  padding: 1px 2px;
+  cursor: pointer;
+  font-family: inherit;
+  width: 38px;
+}
+
+.t-size-select option { background: #1e2124; }
+
+/* Selector de peso de fuente */
+.t-weight-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 3px;
+  font-size: 0.68rem;
+  padding: 1px 2px;
+  cursor: pointer;
+  font-family: 'Grift', system-ui, sans-serif;
+  width: 68px;
+}
+
+.t-weight-select option { background: #1e2124; font-family: 'Grift', system-ui, sans-serif; }
+
+/* Input de color de texto */
+.t-color-pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.t-color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  display: block;
+  flex-shrink: 0;
+}
+
+.t-color-pick input[type="color"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+/* ============================================
+   NODOS DE ÁREA (formas)
+   ============================================ */
+
+.t-shape-area {
+  border: 2px solid;
+  border-radius: 6px;
+  position: relative;
+  cursor: grab;
+}
+
+.t-shape-area:active { cursor: grabbing; }
+
+.t-shape-area-circle { border-radius: 50%; }
+
+.t-shape-selected {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Barra de acciones de forma (abajo del área) */
+.t-shape-actions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1a1d20;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 7px;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Swatches de color para formas */
+.t-color-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform 0.12s, border-color 0.12s;
+}
+
+.t-color-swatch:hover { transform: scale(1.2); }
+
+.t-color-swatch.active {
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.15);
+}
+
+/* Handles — ocultos por defecto, aparecen al hover del nodo */
+.t-handle {
+  opacity: 0 !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  transition: opacity 0.15s, transform 0.15s, background 0.15s !important;
+}
+
+.react-flow__node:hover .t-handle,
+.react-flow__handle.connecting,
+.react-flow__handle.valid {
+  opacity: 1 !important;
+}
+
+.t-handle:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  transform: scale(1.25) !important;
+}
+
+/* ============================================
+   MODO LISTA (dentro de TextNode)
+   ============================================ */
+
+/* Cuando el nodo de texto está en modo lista, alineamos al inicio */
+.t-node:has(.t-lista-content) {
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 200px;
+}
+
+.t-lista-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* El nodo en modo lista se ajusta al contenido (sin altura fija) */
+.t-node:has(.t-lista-content) {
+  height: auto !important;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* Cabecera */
+.t-lista-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem 0.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.t-lista-titulo {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: text;
+  min-width: 0;
+  word-break: break-word;
+}
+
+input.t-lista-titulo {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 100%;
+  padding: 0;
+}
+
+/* Cuerpo con los ítems */
+.t-lista-body {
+  padding: 0.35rem 0.5rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.t-lista-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.t-lista-item-row:hover { background: rgba(255,255,255,0.03); }
+
+/* Botón +/- de expansión — en el título de la lista */
+.t-toggle-btn {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  background: rgba(162, 146, 197, 0.1);
+  border: 1px solid rgba(162, 146, 197, 0.25);
+  border-radius: 4px;
+  color: var(--soma-purple);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+}
+
+.t-toggle-btn:hover {
+  background: rgba(162, 146, 197, 0.22);
+  border-color: var(--soma-purple);
+  color: var(--text-primary);
+}
+
+/* Texto del ítem */
+.t-lista-item-titulo {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: text;
+  min-width: 0;
+  word-break: break-word;
+}
+
+input.t-lista-item-titulo {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255,255,255,0.2);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  width: 100%;
+  padding: 0 0 1px;
+}
+
+/* Botón × eliminar ítem/detalle */
+.t-lista-x {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  transition: color 0.12s, background 0.12s;
+}
+
+.t-lista-x:hover { color: #e05555; background: rgba(220,60,60,0.12); }
+
+/* Ítem activo (recibe el foco de formato) */
+.t-item-active {
+  background: rgba(162, 146, 197, 0.07);
+  border-radius: 3px;
+}
+
+/* Marcador de viñeta o número */
+.t-lista-marker {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: right;
+  color: rgba(162, 146, 197, 0.7);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  padding-right: 2px;
+  user-select: none;
+}
+
+/* Botón tipo de lista en format bar */
+.t-list-type-btn {
+  font-size: 0.72rem;
+  font-weight: 600;
+  min-width: 20px;
+  letter-spacing: -0.01em;
+}
+
+.t-lista-add-item {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  margin-top: 0.2rem;
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+  transition: color 0.12s;
+}
+
+.t-lista-add-item:hover { color: var(--text-secondary); }
+
+/* ---- Botón para abrir el tablero desde las tarjetas ---- */
+.btn-tablero {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(162, 146, 197, 0.08);
+  border: 1px solid rgba(162, 146, 197, 0.22);
+  color: var(--soma-purple);
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.btn-tablero:hover {
+  background: rgba(162, 146, 197, 0.18);
+  border-color: var(--soma-purple);
+}
+
+/* Responsive: en pantallas muy pequeñas, el modal ocupa toda la pantalla */
+@media (max-width: 600px) {
+  .tablero-modal {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+  }
+
+  .t-hint {
+    display: none;
+  }
+}
