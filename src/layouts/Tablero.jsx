@@ -515,6 +515,22 @@ const ShapeNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY })
 
 const nodeTypes = { textoNode: TextNode, formaNode: ShapeNode };
 
+// Strip React Flow v12 internal properties before persisting to Firestore
+const serializeNode = ({ id, type, position, data, style, zIndex }) => ({
+  id, type, position, data,
+  ...(style    !== undefined && { style }),
+  ...(zIndex   !== undefined && { zIndex }),
+});
+const serializeEdge = ({ id, source, target, sourceHandle, targetHandle, type, animated, label, style }) => ({
+  id, source, target,
+  ...(sourceHandle !== undefined && { sourceHandle }),
+  ...(targetHandle !== undefined && { targetHandle }),
+  ...(type         !== undefined && { type }),
+  ...(animated     !== undefined && { animated }),
+  ...(label        !== undefined && { label }),
+  ...(style        !== undefined && { style }),
+});
+
 // ── Tablero interno ───────────────────────────────────────
 const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -548,7 +564,7 @@ const TableroInner = ({ entityId, entityType, titulo, onClose }) => {
       try {
         await updateDoc(
           doc(db, 'usuarios', auth.currentUser.uid, entityType, entityId),
-          { tablero: { nodes, edges } }
+          { tablero: { nodes: nodes.map(serializeNode), edges: edges.map(serializeEdge) } }
         );
         setSaveStatus('saved');
       } catch { setSaveStatus('idle'); }
