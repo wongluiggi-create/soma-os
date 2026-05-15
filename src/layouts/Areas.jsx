@@ -190,16 +190,7 @@ const Areas = () => {
               <div className="proyecto-card-main-info">
                 <div className="proyecto-card-header">
                   <h3>{area.titulo}</h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <select 
-                      className={`status-badge ${area.estado.replace(' ', '-')}`}
-                      value={area.estado}
-                      onChange={(e) => updateAreaEstado(area.id, e.target.value)}
-                    >
-                      <option value="en progreso">EN PROGRESO</option>
-                      <option value="pausado">PAUSADAS</option>
-                      <option value="completado">COMPLETADAS</option>
-                    </select>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                     <button className="btn-icon-action" title="Archivar Área" onClick={() => toggleArchivarArea(area.id)}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
                     </button>
@@ -344,6 +335,17 @@ const Areas = () => {
                   );
                 })}
                 <button className="btn-add-subcat" onClick={() => agregarSubCategoria(area.id)}>+ Agregar Subtarjeta</button>
+              </div>
+              <div className="card-footer-status">
+                <select
+                  className={`status-badge ${area.estado.replace(' ', '-')}`}
+                  value={area.estado}
+                  onChange={(e) => updateAreaEstado(area.id, e.target.value)}
+                >
+                  <option value="en progreso">EN PROGRESO</option>
+                  <option value="pausado">PAUSADO</option>
+                  <option value="completado">COMPLETADO</option>
+                </select>
               </div>
             </div>
           );

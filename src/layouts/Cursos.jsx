@@ -202,22 +202,12 @@ const Cursos = ({ categoriasCursos = [] }) => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                     <button
-                      className="btn-tablero"
+                      className="btn-icon-action"
                       title="Abrir tablero de diagramas"
                       onClick={() => setTableroOpen({ id: curso.id, titulo: curso.titulo })}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                      Tablero
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                     </button>
-                    <select
-                      className={`status-badge ${curso.estado.replace(' ', '-')}`}
-                      value={curso.estado}
-                      onChange={(e) => updateCursoEstado(curso.id, e.target.value)}
-                    >
-                      <option value="en progreso">EN CURSO</option>
-                      <option value="pausado">PAUSADO</option>
-                      <option value="completado">COMPLETADO</option>
-                    </select>
                     <button className="btn-icon-action" title="Archivar Curso" onClick={() => toggleArchivarCurso(curso.id)}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
                     </button>
@@ -362,6 +352,17 @@ const Cursos = ({ categoriasCursos = [] }) => {
                   );
                 })}
                 <button className="btn-add-subcat" onClick={() => agregarSubCategoria(curso.id)}>+ Agregar Módulo</button>
+              </div>
+              <div className="card-footer-status">
+                <select
+                  className={`status-badge ${curso.estado.replace(' ', '-')}`}
+                  value={curso.estado}
+                  onChange={(e) => updateCursoEstado(curso.id, e.target.value)}
+                >
+                  <option value="en progreso">EN CURSO</option>
+                  <option value="pausado">PAUSADO</option>
+                  <option value="completado">COMPLETADO</option>
+                </select>
               </div>
             </div>
           );
