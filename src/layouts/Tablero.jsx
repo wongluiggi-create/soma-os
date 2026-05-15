@@ -515,11 +515,14 @@ const ShapeNode = ({ id, data, selected, positionAbsoluteX, positionAbsoluteY })
 
 const nodeTypes = { textoNode: TextNode, formaNode: ShapeNode };
 
-// Strip React Flow v12 internal properties before persisting to Firestore
-const serializeNode = ({ id, type, position, data, style, zIndex }) => ({
+// Strip React Flow v12 internal properties before persisting to Firestore.
+// width/height son propiedades directas que NodeResizer actualiza además de style.
+const serializeNode = ({ id, type, position, data, style, zIndex, width, height }) => ({
   id, type, position, data,
-  ...(style    !== undefined && { style }),
-  ...(zIndex   !== undefined && { zIndex }),
+  ...(style  !== undefined && { style  }),
+  ...(zIndex !== undefined && { zIndex }),
+  ...(width  !== undefined && { width  }),
+  ...(height !== undefined && { height }),
 });
 const serializeEdge = ({ id, source, target, sourceHandle, targetHandle, type, animated, label, style }) => ({
   id, source, target,
