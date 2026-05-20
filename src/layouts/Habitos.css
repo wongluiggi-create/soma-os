@@ -185,3 +185,4 @@
 .habit-checkbox-wrapper input:checked ~ .habit-checkbox-custom:after {
   content: "✓"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--bg-main); font-size: 20px; font-weight: 800;
 }
+

@@ -29,7 +29,7 @@ const Habitos = () => {
       setHabitos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    return () => unsubscribe();
+    return () => { unsubscribe(); };
   }, []);
 
   // Generar los 7 días de la semana visible

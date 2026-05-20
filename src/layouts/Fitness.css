@@ -662,3 +662,761 @@
   font-size: 0.78rem;
   opacity: 0.7;
 }
+
+/* Día completado en calendario */
+.calendar-day.completed {
+  border-color: var(--soma-purple, #a292c5);
+  background: rgba(162, 146, 197, 0.12);
+}
+
+.completed-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--soma-purple, #a292c5);
+  box-shadow: 0 0 6px rgba(162, 146, 197, 0.6);
+}
+
+/* Gráfico de barras de actividad semanal */
+.activity-chart-section {
+  margin-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.75rem;
+}
+
+.activity-chart-label {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.activity-bar-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 70px;
+}
+
+.activity-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+}
+
+.activity-bar-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.activity-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: rgba(255, 255, 255, 0.08);
+  transition: height 0.4s ease;
+  min-height: 4px;
+}
+
+.activity-bar.has-data {
+  background: var(--soma-purple, #a292c5);
+  box-shadow: 0 0 6px rgba(162, 146, 197, 0.35);
+}
+
+.activity-bar.today.has-data {
+  background: var(--soma-orange, #f07f12);
+  box-shadow: 0 0 8px rgba(240, 127, 18, 0.4);
+}
+
+.activity-bar-count {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.5);
+  height: 12px;
+}
+
+.activity-bar-day {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+}
+
+/* --- Drag handle en tarjetas de rutina --- */
+.drag-handle {
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+  user-select: none;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+.drag-handle:hover { color: rgba(255, 255, 255, 0.5); }
+
+/* --- Estados de drop en el calendario --- */
+.calendar-day.drop-target {
+  border-style: dashed;
+  border-color: rgba(162, 146, 197, 0.4);
+  transition: all 0.15s ease;
+}
+.calendar-day.drag-over {
+  border-color: var(--soma-purple, #a292c5);
+  background: rgba(162, 146, 197, 0.22);
+  transform: scale(1.06);
+  transition: all 0.15s ease;
+}
+.calendar-day.drag-over.will-remove {
+  border-color: var(--soma-orange, #f07f12);
+  background: rgba(240, 127, 18, 0.15);
+}
+
+/* --- Botón de registro mejorado --- */
+.register-workout-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  align-items: center;
+}
+
+.btn-register-workout {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(162, 146, 197, 0.35);
+  background: rgba(162, 146, 197, 0.07);
+  color: var(--soma-purple, #a292c5);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-register-workout:hover {
+  background: rgba(162, 146, 197, 0.18);
+  border-color: var(--soma-purple, #a292c5);
+}
+.btn-register-workout.partial {
+  border-color: var(--soma-yellow, #f5c518);
+  color: var(--soma-yellow, #f5c518);
+  background: rgba(245, 197, 24, 0.07);
+}
+.btn-register-workout.partial:hover {
+  background: rgba(245, 197, 24, 0.15);
+}
+.btn-register-workout.complete {
+  border-color: var(--soma-orange, #f07f12);
+  color: var(--soma-orange, #f07f12);
+  background: rgba(240, 127, 18, 0.1);
+}
+.btn-register-workout.complete:hover {
+  background: rgba(240, 127, 18, 0.2);
+}
+
+.register-check { font-size: 0.9rem; }
+
+.register-progress {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.btn-register-video {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-register-video:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* --- Planner semanal --- */
+.cal-planner-card {
+  padding: 1rem 1.25rem;
+}
+
+.cal-planner-columns {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.cal-day-col {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease;
+}
+
+.cal-day-col.today { border-color: rgba(240, 127, 18, 0.5); }
+.cal-day-col.drop-target { border-style: dashed; border-color: rgba(162, 146, 197, 0.4); }
+.cal-day-col.drag-over { border-color: var(--soma-purple, #a292c5); background: rgba(162, 146, 197, 0.04); }
+.cal-day-col.drag-over.will-remove { border-color: var(--soma-orange, #f07f12); }
+
+.cal-day-header {
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.3s ease;
+}
+
+.cal-day-name-num {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.cal-day-name {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.05em;
+}
+
+.cal-day-num {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.cal-day-num.today { color: var(--soma-orange, #f07f12); }
+
+.cal-done-count {
+  font-size: 0.62rem;
+  color: var(--soma-orange, #f07f12);
+  background: rgba(240, 127, 18, 0.12);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+.cal-day-body {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.cal-empty-day {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.18);
+  text-align: center;
+  padding: 1rem 0.25rem;
+}
+
+/* Tarjeta de rutina dentro del planner */
+.cal-routine-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 0.55rem;
+  transition: border-color 0.2s;
+}
+
+.cal-routine-card.done {
+  border-color: rgba(240, 127, 18, 0.28);
+  background: rgba(240, 127, 18, 0.04);
+}
+
+.cal-routine-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.2rem;
+}
+
+.cal-routine-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-done-badge {
+  font-size: 0.7rem;
+  color: var(--soma-orange, #f07f12);
+  flex-shrink: 0;
+}
+
+.cal-video-link {
+  font-size: 0.75rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.cal-exercise-list {
+  margin-top: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cal-exercise-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.3rem;
+}
+
+.cal-exercise-name {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-done-label {
+  font-size: 0.65rem;
+  color: rgba(240, 127, 18, 0.65);
+  text-align: center;
+  margin: 0.4rem 0 0;
+}
+
+/* Leyenda del mapa de calor */
+.heatmap-legend {
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.heatmap-legend-scale {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap-legend-label {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.heatmap-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* --- Selector de intensidad en tarjeta de rutina --- */
+.intensity-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.intensity-picker-label {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.intensity-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.intensity-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(240, 127, 18, 1);
+  border: 1px solid rgba(240, 127, 18, 0.3);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.intensity-dot:hover {
+  transform: scale(1.2);
+}
+
+.intensity-dot.active {
+  border-color: rgba(240, 127, 18, 0.8);
+  box-shadow: 0 0 6px rgba(240, 127, 18, 0.5);
+  transform: scale(1.15);
+}
+
+/* --- Mapa de calor fitness (estilo Actividad Anual) --- */
+.fitness-heat-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.fitness-heat-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.fitness-x-axis {
+  display: grid;
+  grid-template-columns: repeat(53, 1fr);
+  gap: 2px;
+  margin-left: 1.5rem;
+  min-width: 700px;
+}
+
+.fitness-heat-inner {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 700px;
+}
+
+.fitness-heat-graph {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  grid-auto-flow: column;
+  gap: 2px;
+  flex: 1;
+}
+
+/* Niveles de intensidad — naranja */
+.activity-block.heat-1 { background-color: rgba(240, 127, 18, 0.22); }
+.activity-block.heat-2 { background-color: rgba(240, 127, 18, 0.46); }
+.activity-block.heat-3 { background-color: rgba(240, 127, 18, 0.70); }
+.activity-block.heat-4 { background-color: rgba(240, 127, 18, 0.94); }
+
+/* Días futuros: sin color, menos visibles */
+.activity-block.is-future {
+  opacity: 0.2;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* --- Botón expandir/colapsar rutinas en el planner --- */
+.cal-more-btn {
+  width: 100%;
+  padding: 0.22rem 0;
+  font-size: 0.63rem;
+  color: rgba(255, 255, 255, 0.3);
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  margin-top: 2px;
+}
+
+.cal-more-btn:hover {
+  color: var(--soma-purple, #a292c5);
+  border-color: rgba(162, 146, 197, 0.4);
+  background: rgba(162, 146, 197, 0.05);
+}
+
+/* Pin-to-date button in cal planner */
+.btn-pin-date {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.3;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.btn-pin-date:hover, .btn-pin-date.active {
+  opacity: 1;
+}
+
+/* --- REGISTRO DE PESO --- */
+.peso-tracking-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(162, 146, 197, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.peso-empty-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.peso-columns-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.peso-chart-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.peso-controls-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .peso-columns-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.peso-input-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.peso-input-row input[type="number"] {
+  width: 80px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.peso-legend {
+  display: flex;
+  gap: 1.2rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.peso-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.peso-legend-line {
+  display: inline-block;
+  width: 20px;
+  height: 2px;
+  vertical-align: middle;
+}
+
+.peso-legend-line.purple { background: var(--soma-purple); }
+.peso-legend-line.orange-dashed {
+  background: none;
+  border-top: 2px dashed var(--soma-orange);
+}
+
+.peso-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.peso-legend-dot.orange { background: var(--soma-orange); }
+
+.peso-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(162, 146, 197, 0.3) transparent;
+}
+
+.peso-entry-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.8rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.peso-entry-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--soma-purple);
+}
+
+.peso-entry-date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+/* --- 5 CATEGORÍAS DE COMIDA --- */
+.meal-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.meal-category-card {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.meal-category-card.logged {
+  border-color: rgba(162, 146, 197, 0.28);
+  background: rgba(162, 146, 197, 0.04);
+}
+
+.meal-category-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.meal-cat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.meal-cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.meal-cat-dot.active {
+  background: var(--soma-purple);
+  box-shadow: 0 0 6px rgba(162, 146, 197, 0.5);
+}
+
+.meal-cat-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.meal-cat-kcal {
+  font-size: 0.72rem;
+  color: var(--soma-purple);
+  font-weight: 600;
+}
+
+.meal-cat-empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  opacity: 0.45;
+}
+
+.meal-cat-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.meal-cat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.meal-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.meal-item-hora {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.meal-item-desc {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meal-item-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.meal-item-kcal {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* --- ADHERENCIA CHART --- */
+.adherencia-chart-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(162, 146, 197, 0.12);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+  .meal-categories-grid {
+    grid-template-columns: 1fr;
+  }
+  .meal-category-card.full-width {
+    grid-column: auto;
+  }
+}
