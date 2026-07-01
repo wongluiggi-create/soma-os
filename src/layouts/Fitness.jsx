@@ -1,13 +1,48 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { storage, db, auth } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
+import { db, auth } from '../firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, setDoc } from 'firebase/firestore';
 import './Proyectos.css';
 import './Finanzas.css';
 import './Fitness.css';
 
+const MacroBar = ({ label, current, goal, color, unit }) => {
+  const pct = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+  const isOver = goal > 0 && current > goal;
+  const barColor = isOver ? 'var(--soma-orange)' : color;
+  return (
+    <div className="macro-bar-row">
+      <div className="macro-bar-label-row">
+        <span className="macro-bar-name">{label}</span>
+        <span className="macro-bar-value" style={{ color: isOver ? 'var(--soma-orange)' : 'var(--text-secondary)' }}>
+          {current}{unit} / {goal}{unit}
+          <span style={{ fontSize: '0.72rem', opacity: 0.7, marginLeft: '0.4rem' }}>({Math.round(pct)}%)</span>
+        </span>
+      </div>
+      <div className="macro-bar-track">
+        <div className="macro-bar-fill" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+      </div>
+    </div>
+  );
+};
+
 const HEAT_WEEKS = 53;
 const MEAL_CATEGORIES = ['Desayuno', 'Media Mañana', 'Almuerzo', 'Merienda', 'Cena'];
+
+const FASTING_PHASES = [
+  { minH: 0,  maxH: 4,   label: 'Digestión',          desc: 'El cuerpo procesa y absorbe los nutrientes ingeridos.',               color: '#a292c5' },
+  { minH: 4,  maxH: 8,   label: 'Post-absortivo',      desc: 'El glucógeno hepático se usa como fuente de energía principal.',      color: '#3498db' },
+  { minH: 8,  maxH: 12,  label: 'Gluconeogénesis',     desc: 'El hígado sintetiza glucosa a partir de aminoácidos y glicerol.',     color: '#27ae60' },
+  { minH: 12, maxH: 18,  label: 'Quema de grasa',      desc: 'Los ácidos grasos se movilizan y oxidan como combustible principal.', color: '#f0c040' },
+  { minH: 18, maxH: 24,  label: 'Cetosis inicial',     desc: 'Se producen cetonas. La autofagia celular comienza a activarse.',     color: '#f07f12' },
+  { minH: 24, maxH: 999, label: 'Autofagia profunda',  desc: 'Limpieza y regeneración celular intensa. Máximo beneficio.',         color: '#e74c3c' },
+];
+
+const formatFastTime = (horas) => {
+  const h = Math.floor(horas);
+  const m = Math.floor((horas - h) * 60);
+  const s = Math.floor(((horas - h) * 60 - m) * 60);
+  return h > 0 ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s).padStart(2,'0')}s`;
+};
 
 const Fitness = ({ peso = '', estatura = '' }) => {
   // --- TABS ---
@@ -28,9 +63,12 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const [isComidaModalOpen, setIsComidaModalOpen] = useState(false);
   const [newComidaForm, setNewComidaForm] = useState({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
 
-  const fileInputRef = useRef(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [targetEjercicio, setTargetEjercicio] = useState(null);
+  // --- AYUNO STATES ---
+  const [ayunos, setAyunos] = useState([]);
+  const [nowTick, setNowTick] = useState(Date.now());
+  const [ayunoFormOpen, setAyunoFormOpen] = useState(false);
+  const [ayunoForm, setAyunoForm] = useState({ inicio: '', fin: '', notas: '' });
+
   const [draggingRutinaId, setDraggingRutinaId] = useState(null);
   const [draggingFromDay, setDraggingFromDay] = useState(null);
   const [dragOverDay, setDragOverDay] = useState(null);
@@ -59,7 +97,17 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const [comidas, setComidas] = useState([]);
   const [fitnessAnualGraph, setFitnessAnualGraph] = useState(() => Array(HEAT_WEEKS * 7).fill(0));
   const [pesoRegistros, setPesoRegistros] = useState([]);
-  const [nuevoPeso, setNuevoPeso] = useState('');
+  const [nuevaMedida, setNuevaMedida] = useState({ peso: '', abdomen: '', piernas: '', brazos: '' });
+  const [metasCorporales, setMetasCorporales] = useState({ pesoObj: '', abdomenObj: '', piernasObj: '', brazosObj: '', diasSemana: 4 });
+  const [metasCorporalesForm, setMetasCorporalesForm] = useState({ pesoObj: '', abdomenObj: '', piernasObj: '', brazosObj: '', diasSemana: 4 });
+  const [editingMetasCorporales, setEditingMetasCorporales] = useState(false);
+  const [nutriCalWeekStart, setNutriCalWeekStart] = useState(() => {
+    const today = new Date();
+    const d = new Date(today);
+    d.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   const rachaDiaria = useMemo(() => {
     const fechas = new Set(
@@ -236,6 +284,10 @@ const Fitness = ({ peso = '', estatura = '' }) => {
         setMetasForm(data.metasNutricion);
       }
       if (data.fitnessAnualGraph) setFitnessAnualGraph(data.fitnessAnualGraph);
+      if (data.metasCorporales) {
+        setMetasCorporales(data.metasCorporales);
+        setMetasCorporalesForm(data.metasCorporales);
+      }
     });
 
     const qRutinas = query(collection(db, 'usuarios', uid, 'rutinas'), orderBy('createdAt', 'desc'));
@@ -253,8 +305,60 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       setPesoRegistros(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
 
-    return () => { unUser(); unRutinas(); unComidas(); unPeso(); };
+    const qAyunos = query(collection(db, 'usuarios', uid, 'ayunos'), orderBy('createdAt', 'desc'));
+    const unAyunos = onSnapshot(qAyunos, snap => {
+      setAyunos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unUser(); unRutinas(); unComidas(); unPeso(); unAyunos(); };
   }, []);
+
+  useEffect(() => {
+    const hasActive = ayunos.some(a => a.activo);
+    if (!hasActive) return;
+    const iv = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [ayunos]);
+
+  // --- AYUNO CRUD ---
+  const iniciarAyuno = async () => {
+    if (!auth.currentUser) return;
+    const ahora = new Date().toISOString();
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'ayunos'), {
+      inicio: ahora, fin: null, activo: true, duracionHoras: null, notas: '', createdAt: ahora,
+    });
+  };
+
+  const romperAyuno = async (ayunoId) => {
+    if (!auth.currentUser) return;
+    const ahora = new Date();
+    const ay = ayunos.find(a => a.id === ayunoId);
+    if (!ay) return;
+    const duracionHoras = parseFloat(((ahora - new Date(ay.inicio)) / 3600000).toFixed(2));
+    await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'ayunos', ayunoId), {
+      fin: ahora.toISOString(), activo: false, duracionHoras,
+    });
+  };
+
+  const registrarAyunoManual = async () => {
+    if (!ayunoForm.inicio || !ayunoForm.fin || !auth.currentUser) return;
+    const inicio = new Date(ayunoForm.inicio);
+    const fin = new Date(ayunoForm.fin);
+    if (fin <= inicio) return alert('La hora de fin debe ser posterior al inicio.');
+    const duracionHoras = parseFloat(((fin - inicio) / 3600000).toFixed(2));
+    await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'ayunos'), {
+      inicio: inicio.toISOString(), fin: fin.toISOString(),
+      activo: false, duracionHoras, notas: ayunoForm.notas,
+      createdAt: new Date().toISOString(),
+    });
+    setAyunoFormOpen(false);
+    setAyunoForm({ inicio: '', fin: '', notas: '' });
+  };
+
+  const eliminarAyuno = async (id) => {
+    if (!auth.currentUser) return;
+    await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'ayunos', id));
+  };
 
   // --- DATE NAVIGATION ---
   const goToPrevDay = () => {
@@ -323,16 +427,33 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { metasNutricion: metas }, { merge: true });
   };
 
-  // --- PESO CRUD ---
-  const registrarPeso = async () => {
-    const kg = parseFloat(nuevoPeso);
+  // --- MEDIDAS CRUD ---
+  const registrarMedida = async () => {
+    const kg = parseFloat(nuevaMedida.peso);
     if (isNaN(kg) || kg <= 0 || !auth.currentUser) return;
     await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'pesoRegistros'), {
       fecha: selectedDate,
       peso: kg,
+      abdomen: parseFloat(nuevaMedida.abdomen) || null,
+      piernas: parseFloat(nuevaMedida.piernas) || null,
+      brazos: parseFloat(nuevaMedida.brazos) || null,
       createdAt: new Date().toISOString(),
     });
-    setNuevoPeso('');
+    setNuevaMedida({ peso: '', abdomen: '', piernas: '', brazos: '' });
+  };
+
+  const handleSaveMetasCorporales = async () => {
+    if (!auth.currentUser) return;
+    const metas = {
+      pesoObj: metasCorporalesForm.pesoObj,
+      abdomenObj: metasCorporalesForm.abdomenObj,
+      piernasObj: metasCorporalesForm.piernasObj,
+      brazosObj: metasCorporalesForm.brazosObj,
+      diasSemana: parseInt(metasCorporalesForm.diasSemana) || 4,
+    };
+    setMetasCorporales(metas);
+    setEditingMetasCorporales(false);
+    await setDoc(doc(db, 'usuarios', auth.currentUser.uid), { metasCorporales: metas }, { merge: true });
   };
 
   const eliminarPesoRegistro = async (id) => {
@@ -363,26 +484,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     setNewComidaForm({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
   };
 
-  // --- MACRO PROGRESS BAR COMPONENT ---
-  const MacroBar = ({ label, current, goal, color, unit }) => {
-    const pct = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
-    const isOver = goal > 0 && current > goal;
-    const barColor = isOver ? 'var(--soma-orange)' : color;
-    return (
-      <div className="macro-bar-row">
-        <div className="macro-bar-label-row">
-          <span className="macro-bar-name">{label}</span>
-          <span className="macro-bar-value" style={{ color: isOver ? 'var(--soma-orange)' : 'var(--text-secondary)' }}>
-            {current}{unit} / {goal}{unit}
-            <span style={{ fontSize: '0.72rem', opacity: 0.7, marginLeft: '0.4rem' }}>({Math.round(pct)}%)</span>
-          </span>
-        </div>
-        <div className="macro-bar-track">
-          <div className="macro-bar-fill" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-        </div>
-      </div>
-    );
-  };
 
   // --- ACTIVITY GRAPH (Rutinas tab) — datos reales del calendario semanal ---
   // Se calcula después de weekDays/completedPerDay en el flujo de render
@@ -404,8 +505,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       count + (r.historial || []).filter(h => h.fechaISO === dayISO).length, 0
     );
   });
-  const maxCompleted = Math.max(...completedPerDay, 1);
-
   // Intensidad manual por día: máximo nivel (1-5) registrado ese día
   const HEAT_OPACITIES = [0, 0.18, 0.36, 0.55, 0.73, 0.92];
   const intensidadPerDay = weekDays.map(date => {
@@ -486,13 +585,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     await updateRutinaDB(rutinaId, { historial: r.historial.filter((_, i) => i !== idx) });
   };
 
-  const setIntensidadPendiente = async (rutinaId, nivel) => {
-    const r = rutinas.find(r => r.id === rutinaId);
-    if (!r || !auth.currentUser) return;
-    const nuevo = (r.intensidadPendiente || 0) === nivel ? 0 : nivel;
-    await updateRutinaDB(rutinaId, { intensidadPendiente: nuevo });
-  };
-
   const registrarEntrenamiento = async (rutinaId, dayISO, viaVideo = false) => {
     const r = rutinas.find(r => r.id === rutinaId);
     if (r && auth.currentUser) {
@@ -511,29 +603,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const eliminarRegistroHistorial = async (rutinaId, regId) => {
     const r = rutinas.find(r => r.id === rutinaId);
     if (r && auth.currentUser) await updateRutinaDB(rutinaId, { historial: r.historial.filter(h => h.id !== regId) });
-  };
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !targetEjercicio) return;
-    setUploadingImage(true);
-    try {
-      const sRef = ref(storage, `fitness/${Date.now()}_${file.name}`);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      const r = rutinas.find(r => r.id === targetEjercicio.rutinaId);
-      if (r && auth.currentUser) {
-        const ejs = r.ejercicios.map(ej => ej.id === targetEjercicio.ejercicioId
-          ? { ...ej, imagenes: [...(ej.imagenes || []), url].slice(0, 2) } : ej);
-        await updateRutinaDB(r.id, { ejercicios: ejs });
-      }
-    } catch (err) { console.error(err); alert('Error subiendo imagen.'); }
-    finally { setUploadingImage(false); setTargetEjercicio(null); e.target.value = null; }
-  };
-
-  const agregarImagenEjercicio = (rutinaId, ejercicioId) => {
-    setTargetEjercicio({ rutinaId, ejercicioId });
-    fileInputRef.current?.click();
   };
 
   const agregarCategoriaRutina = async (rutinaId) => {
@@ -621,6 +690,49 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const rutinasActivas   = rutinas.filter(r => !r.archivada);
   const rutinasArchivadas = rutinas.filter(r =>  r.archivada);
 
+  // --- AYUNO COMPUTED ---
+  const ayunoActivo = ayunos.find(a => a.activo) || null;
+  const horasAyuno = ayunoActivo ? (nowTick - new Date(ayunoActivo.inicio).getTime()) / 3600000 : 0;
+  const faseActual = FASTING_PHASES.find(f => horasAyuno >= f.minH && horasAyuno < f.maxH) || FASTING_PHASES[0];
+  const faseSig = FASTING_PHASES[FASTING_PHASES.indexOf(faseActual) + 1] || null;
+
+  // --- TRAINING STATS (shared across tabs) ---
+  const KCAL_EST = { 1: 150, 2: 250, 3: 350, 4: 450, 5: 450 };
+  const mondayISO = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - (d.getDay() === 0 ? 6 : d.getDay() - 1));
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString().split('T')[0];
+  })();
+  const hace30ISO = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return d.toISOString().split('T')[0];
+  })();
+  const allTrainedDates = new Set(
+    rutinas.flatMap(r => (r.historial || []).map(h => h.fechaISO).filter(Boolean))
+  );
+  const diasEntrenadosSemana = [...allTrainedDates].filter(iso => iso >= mondayISO).length;
+  const diasEntrenados30 = [...allTrainedDates].filter(iso => iso >= hace30ISO).length;
+
+  // Latest non-null value per body measurement field
+  const sortedMedidas = [...pesoRegistros].sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const latestMedidas = {
+    peso:    sortedMedidas.find(r => r.peso    != null)?.peso,
+    abdomen: sortedMedidas.find(r => r.abdomen != null)?.abdomen,
+    piernas: sortedMedidas.find(r => r.piernas != null)?.piernas,
+    brazos:  sortedMedidas.find(r => r.brazos  != null)?.brazos,
+  };
+
+  // --- NUTRI CALENDAR ---
+  const nutriCalWeekDays = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(nutriCalWeekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const prevNutriWeek = () => { const d = new Date(nutriCalWeekStart); d.setDate(d.getDate() - 7); setNutriCalWeekStart(d); };
+  const nextNutriWeek = () => { const d = new Date(nutriCalWeekStart); d.setDate(d.getDate() + 7); setNutriCalWeekStart(d); };
+
   // ======================================================
   return (
     <div className="proyectos-container">
@@ -634,10 +746,9 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       {/* TABS */}
       <div className="fitness-tabs">
         <button className={`fitness-tab-btn ${activeTab === 'rutinas'   ? 'active' : ''}`} onClick={() => setActiveTab('rutinas')}>Rutinas</button>
-        <button className={`fitness-tab-btn ${activeTab === 'nutricion' ? 'active' : ''}`} onClick={() => setActiveTab('nutricion')}>Nutrición Diaria</button>
+        <button className={`fitness-tab-btn ${activeTab === 'nutricion' ? 'active' : ''}`} onClick={() => setActiveTab('nutricion')}>Nutrición</button>
+        <button className={`fitness-tab-btn ${activeTab === 'metas'     ? 'active' : ''}`} onClick={() => setActiveTab('metas')}>Metas</button>
       </div>
-
-      <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleImageUpload} />
 
       {/* ============================================================ */}
       {/* TAB: RUTINAS                                                  */}
@@ -904,11 +1015,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                             ))}
                             <button className="btn-add-link" style={{ padding: '0.2rem 0.5rem', marginTop: 0 }} onClick={() => agregarCategoriaRutina(rutina.id)}>+ Etiqueta</button>
                           </div>
-                          <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.5rem' }}>
-                            {['L','M','M','J','V','S','D'].map((d, i) => (
-                              <button key={i} className={`day-pill ${(rutina.diasAsignados || []).includes(i) ? 'active' : ''}`} onClick={() => toggleDiaRutina(rutina.id, i)}>{d}</button>
-                            ))}
-                          </div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span className={`status-badge ${rutina.estado === 'activo' ? 'en-progreso' : 'pausado'}`}>{rutina.estado}</span>
@@ -940,17 +1046,11 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                                 ))}
                               </div>
                             </div>
-                            <div className="exercise-images">
-                              {(ej.imagenes || []).map((img, i) => <img key={i} src={img} alt={`Ref ${i}`} className="exercise-image-thumb" />)}
-                              {(!ej.imagenes || ej.imagenes.length < 2) && (
-                                <div className="exercise-image-add" onClick={() => agregarImagenEjercicio(rutina.id, ej.id)}>
-                                  {uploadingImage && targetEjercicio?.ejercicioId === ej.id ? '⌛' : '+'}
-                                </div>
-                              )}
-                            </div>
                           </div>
                         ))}
                       </div>
+
+                      <button className="btn-add-subcat" style={{ marginTop: '0.5rem' }} onClick={() => { setActiveRutinaId(rutina.id); setIsExerciseModalOpen(true); }}>+ Añadir Ejercicio</button>
 
                       <div className="enlaces-container" style={{ marginTop: '1rem' }}>
                         {(rutina.enlaces || []).map(enlace => (
@@ -978,21 +1078,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                         <button className="btn-add-link" onClick={() => agregarEnlaceRutina(rutina.id)}>+ Añadir Enlace</button>
                       </div>
 
-                      <div className="intensity-picker">
-                        <span className="intensity-picker-label">Intensidad</span>
-                        <div className="intensity-dots">
-                          {[1,2,3,4,5].map(level => (
-                            <button
-                              key={level}
-                              className={`intensity-dot ${(rutina.intensidadPendiente || 0) >= level ? 'active' : ''}`}
-                              style={{ opacity: HEAT_OPACITIES[level] + 0.08 }}
-                              onClick={() => setIntensidadPendiente(rutina.id, level)}
-                              title={`Intensidad ${level}`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-
                       <div className="register-workout-row">
                         <button
                           className={`btn-register-workout ${progreso === 100 ? 'complete' : progreso > 0 ? 'partial' : ''}`}
@@ -1013,7 +1098,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                           </button>
                         )}
                       </div>
-                      <button className="btn-add-subcat" style={{ marginTop: '0.5rem' }} onClick={() => { setActiveRutinaId(rutina.id); setIsExerciseModalOpen(true); }}>+ Añadir Ejercicio</button>
                     </div>
                   );
                 })}
@@ -1114,21 +1198,125 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       {activeTab === 'nutricion' && (
         <div>
 
+          {/* AYUNO INTERMITENTE */}
+          <div className={`ayuno-card${ayunoActivo ? ' ayuno-activo' : ''}`}>
+            {ayunoActivo ? (
+              <>
+                <div className="ayuno-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                    <span className="ayuno-pulse-dot" />
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>Ayuno Activo</h3>
+                  </div>
+                  <button className="btn-romper-ayuno" onClick={() => romperAyuno(ayunoActivo.id)}>Romper ayuno</button>
+                </div>
+
+                <div className="ayuno-timer-row">
+                  <div>
+                    <span className="ayuno-label">Inicio</span>
+                    <p className="ayuno-start-time">
+                      {new Date(ayunoActivo.inicio).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                      {' · '}{new Date(ayunoActivo.inicio).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="ayuno-label">Duración</span>
+                    <p className="ayuno-timer" style={{ color: faseActual.color }}>{formatFastTime(horasAyuno)}</p>
+                  </div>
+                </div>
+
+                {/* Barra de progreso de fases */}
+                <div className="ayuno-bar-wrap">
+                  <div className="ayuno-bar-track">
+                    {FASTING_PHASES.filter(f => f.minH < 24).map((f, i) => {
+                      const left = (f.minH / 24) * 100;
+                      const width = ((Math.min(f.maxH, 24) - f.minH) / 24) * 100;
+                      const isPassed = horasAyuno >= f.maxH;
+                      const isCurrent = horasAyuno >= f.minH && horasAyuno < f.maxH;
+                      return (
+                        <div key={i} className="ayuno-segment"
+                          style={{ left: `${left}%`, width: `${width}%`, backgroundColor: (isPassed || isCurrent) ? f.color : `${f.color}22` }}
+                          title={`${f.label} (${f.minH}–${f.maxH}h)`}
+                        />
+                      );
+                    })}
+                    <div className="ayuno-marker" style={{ left: `${Math.min((horasAyuno / 24) * 100, 99.5)}%` }} />
+                  </div>
+                  <div className="ayuno-bar-labels">
+                    {['0h','4h','8h','12h','16h','18h','24h'].map(l => <span key={l}>{l}</span>)}
+                  </div>
+                </div>
+
+                {/* Fase actual */}
+                <div className="ayuno-phase-box" style={{ borderLeftColor: faseActual.color }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <strong style={{ color: faseActual.color, fontSize: '0.9rem' }}>{faseActual.label}</strong>
+                    {faseSig && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        Próxima en <strong style={{ color: faseSig.color }}>{formatFastTime(faseSig.minH - horasAyuno)}</strong> → {faseSig.label}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{faseActual.desc}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="ayuno-idle-row">
+                  <div>
+                    <h3 style={{ margin: '0 0 0.2rem', fontSize: '1rem', fontWeight: 500 }}>Ayuno Intermitente</h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {ayunos.length > 0
+                        ? `Último: ${formatFastTime(ayunos[0]?.duracionHoras || 0)} · ${new Date(ayunos[0].inicio).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`
+                        : 'Sin ayunos registrados aún.'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.6rem', flexShrink: 0 }}>
+                    <button className="btn-add-link" onClick={() => setAyunoFormOpen(true)}>+ Registrar</button>
+                    <button className="btn-iniciar-ayuno" onClick={iniciarAyuno}>Iniciar Ayuno</button>
+                  </div>
+                </div>
+
+                {ayunos.length > 0 && (
+                  <div className="ayuno-history-list">
+                    {ayunos.slice(0, 5).map(a => {
+                      const phase = FASTING_PHASES.find(f => (a.duracionHoras||0) >= f.minH && (a.duracionHoras||0) < f.maxH) || FASTING_PHASES[0];
+                      return (
+                        <div key={a.id} className="ayuno-history-item">
+                          <div className="ayuno-history-info">
+                            <strong className="ayuno-history-dur">{formatFastTime(a.duracionHoras || 0)}</strong>
+                            <span className="ayuno-history-date">
+                              {new Date(a.inicio).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+                              {a.fin && ` · ${new Date(a.inicio).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})} → ${new Date(a.fin).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`}
+                            </span>
+                            {a.notas && <span className="ayuno-history-notes">{a.notas}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span className="ayuno-phase-badge" style={{ color: phase.color, borderColor: `${phase.color}55` }}>{phase.label}</span>
+                            <button className="btn-icon-action delete-icon" style={{ fontSize: '0.85rem', padding: '0.2rem 0.4rem' }} onClick={() => eliminarAyuno(a.id)}>×</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
           {/* REGISTRO DE PESO */}
           <div className="peso-tracking-card">
             {pesoRegistros.length === 0 ? (
               <div className="peso-empty-layout">
                 <div>
-                  <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 500 }}>Registro de Peso</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Registra tu primer peso para ver la tendencia calórica.</p>
+                  <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 500 }}>Registro de Medidas</h3>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Registra tu primer peso y medidas para ver la tendencia.</p>
                 </div>
-                <div className="peso-input-row">
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                  </span>
-                  <input type="number" step="0.1" min="20" max="300" placeholder="kg" value={nuevoPeso}
-                    onChange={e => setNuevoPeso(e.target.value)} onKeyDown={e => e.key === 'Enter' && registrarPeso()} />
-                  <button className="btn-primary" onClick={registrarPeso}>Registrar</button>
+                <div className="medida-form-grid">
+                  <input type="number" step="0.1" min="20" max="300" placeholder="Peso (kg)*" value={nuevaMedida.peso} onChange={e => setNuevaMedida(p => ({ ...p, peso: e.target.value }))} onKeyDown={e => e.key === 'Enter' && registrarMedida()} />
+                  <input type="number" step="0.1" placeholder="Abdomen (cm)" value={nuevaMedida.abdomen} onChange={e => setNuevaMedida(p => ({ ...p, abdomen: e.target.value }))} />
+                  <input type="number" step="0.1" placeholder="Piernas (cm)" value={nuevaMedida.piernas} onChange={e => setNuevaMedida(p => ({ ...p, piernas: e.target.value }))} />
+                  <input type="number" step="0.1" placeholder="Brazos (cm)" value={nuevaMedida.brazos} onChange={e => setNuevaMedida(p => ({ ...p, brazos: e.target.value }))} />
+                  <button className="btn-primary medida-btn-full" onClick={registrarMedida}>Registrar</button>
                 </div>
               </div>
             ) : pesoChartData && (
@@ -1168,8 +1356,8 @@ const Fitness = ({ peso = '', estatura = '' }) => {
 
                 {/* Columna derecha: título, formulario y lista */}
                 <div className="peso-controls-col">
-                  <div style={{ marginBottom: '1rem' }}>
-                    <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 500 }}>Registro de Peso</h3>
+                  <div style={{ marginBottom: '0.8rem' }}>
+                    <h3 style={{ margin: '0 0 0.3rem', fontSize: '1rem', fontWeight: 500 }}>Registro de Medidas</h3>
                     {(() => {
                       const last = [...pesoRegistros].sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
                       return (
@@ -1179,19 +1367,23 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                       );
                     })()}
                   </div>
-                  <div className="peso-input-row" style={{ marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                    </span>
-                    <input type="number" step="0.1" min="20" max="300" placeholder="kg" value={nuevoPeso}
-                      onChange={e => setNuevoPeso(e.target.value)} onKeyDown={e => e.key === 'Enter' && registrarPeso()} />
-                    <button className="btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }} onClick={registrarPeso}>Registrar</button>
+                  <div className="medida-form-grid" style={{ marginBottom: '0.8rem' }}>
+                    <input type="number" step="0.1" min="20" max="300" placeholder="Peso (kg)*" value={nuevaMedida.peso} onChange={e => setNuevaMedida(p => ({ ...p, peso: e.target.value }))} onKeyDown={e => e.key === 'Enter' && registrarMedida()} />
+                    <input type="number" step="0.1" placeholder="Abdomen (cm)" value={nuevaMedida.abdomen} onChange={e => setNuevaMedida(p => ({ ...p, abdomen: e.target.value }))} />
+                    <input type="number" step="0.1" placeholder="Piernas (cm)" value={nuevaMedida.piernas} onChange={e => setNuevaMedida(p => ({ ...p, piernas: e.target.value }))} />
+                    <input type="number" step="0.1" placeholder="Brazos (cm)" value={nuevaMedida.brazos} onChange={e => setNuevaMedida(p => ({ ...p, brazos: e.target.value }))} />
+                    <button className="btn-primary medida-btn-full" style={{ fontSize: '0.8rem' }} onClick={registrarMedida}>Registrar</button>
                   </div>
                   <div className="peso-entries-list">
                     {[...pesoRegistros].sort((a, b) => b.fecha.localeCompare(a.fecha)).map(r => (
                       <div key={r.id} className="peso-entry-item">
-                        <div>
-                          <span className="peso-entry-value">{r.peso} kg</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span className="peso-entry-value">{r.peso} kg</span>
+                            {r.abdomen && <span className="medida-badge">Abd {r.abdomen}cm</span>}
+                            {r.piernas && <span className="medida-badge">Pier {r.piernas}cm</span>}
+                            {r.brazos  && <span className="medida-badge">Bra {r.brazos}cm</span>}
+                          </div>
                           <span className="peso-entry-date">
                             {new Date(r.fecha + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
                           </span>
@@ -1209,6 +1401,55 @@ const Fitness = ({ peso = '', estatura = '' }) => {
 
               </div>
             )}
+          </div>
+
+          {/* Calendario Semanal de Nutrición */}
+          <div className="proyecto-card nutri-week-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>Semana Nutricional</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <button className="btn-icon-action" onClick={prevNutriWeek}>←</button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', minWidth: '9rem', textAlign: 'center' }}>
+                  {nutriCalWeekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} – {nutriCalWeekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                </span>
+                <button className="btn-icon-action" onClick={nextNutriWeek}>→</button>
+              </div>
+            </div>
+            <div className="nutri-week-grid">
+              {nutriCalWeekDays.map((date, i) => {
+                const iso = date.toISOString().split('T')[0];
+                const dayComidas = comidas.filter(c => (c.fecha || (c.createdAt ? c.createdAt.split('T')[0] : null)) === iso);
+                const dayKcal = dayComidas.reduce((a, c) => a + (c.calorias || 0), 0);
+                const catCount = new Set(dayComidas.map(c => c.tipo).filter(t => MEAL_CATEGORIES.includes(t))).size;
+                const isSelected = iso === selectedDate;
+                const isToday = iso === new Date().toISOString().split('T')[0];
+                const pct = metasNutricion.calorias > 0 ? Math.min(dayKcal / metasNutricion.calorias, 1) : 0;
+                const barColor = pct > 0.95 ? 'var(--soma-orange)' : pct > 0.7 ? 'var(--soma-yellow)' : 'var(--soma-purple)';
+                const dayAyunos = ayunos.filter(a => {
+                  if (!a.inicio) return false;
+                  const aIso = new Date(a.inicio).toISOString().split('T')[0];
+                  const fIso = a.fin ? new Date(a.fin).toISOString().split('T')[0] : null;
+                  return aIso === iso || fIso === iso;
+                });
+                const maxFastH = dayAyunos.reduce((mx, a) => Math.max(mx, a.duracionHoras || 0), 0);
+                const fastPhase = maxFastH > 0 ? FASTING_PHASES.find(f => maxFastH >= f.minH && maxFastH < f.maxH) || FASTING_PHASES[0] : null;
+                return (
+                  <div key={i} className={`nutri-day-cell${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`} onClick={() => setSelectedDate(iso)}>
+                    <span className="nutri-day-name">{['L','M','X','J','V','S','D'][i]}</span>
+                    <span className={`nutri-day-num${isToday ? ' today' : ''}`}>{date.getDate()}</span>
+                    <div className="nutri-bar-bg">
+                      <div className="nutri-bar-fill" style={{ height: `${pct * 100}%`, backgroundColor: barColor }} />
+                    </div>
+                    <span className="nutri-day-kcal">{dayKcal > 0 ? `${dayKcal}` : '—'}</span>
+                    {catCount > 0 && <span className="nutri-day-cats">{catCount}/5</span>}
+                    {fastPhase && <span className="nutri-day-fast" style={{ color: fastPhase.color }} title={`Ayuno: ${formatFastTime(maxFastH)} · ${fastPhase.label}`}>⏱</span>}
+                    {allTrainedDates.has(iso) && (
+                      <span className="nutri-day-train" title="Entrenamiento completado">💪</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Navegación de fecha */}
@@ -1321,6 +1562,63 @@ const Fitness = ({ peso = '', estatura = '' }) => {
             <MacroBar label="Grasas"         current={totales.grasas}    goal={metasNutricion.grasas}    color="var(--soma-orange)" unit="g" />
           </div>
 
+          {/* AYUNO DEL DÍA SELECCIONADO */}
+          {(() => {
+            const dayAyunosDia = ayunos.filter(a => {
+              if (!a.inicio) return false;
+              const aIso = new Date(a.inicio).toISOString().split('T')[0];
+              const fIso = a.fin ? new Date(a.fin).toISOString().split('T')[0] : null;
+              return aIso === selectedDate || fIso === selectedDate || (aIso < selectedDate && (!fIso || fIso > selectedDate));
+            });
+            if (dayAyunosDia.length === 0) return null;
+            return (
+              <div className="ayuno-day-summary">
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ayuno este día</span>
+                <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
+                  {dayAyunosDia.map(a => {
+                    const phase = FASTING_PHASES.find(f => (a.duracionHoras||0) >= f.minH && (a.duracionHoras||0) < f.maxH) || FASTING_PHASES[0];
+                    return (
+                      <div key={a.id} className="ayuno-day-chip" style={{ borderColor: `${phase.color}55` }}>
+                        <span style={{ fontSize: '0.9rem' }}>⏱</span>
+                        <div>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem', color: phase.color }}>{a.activo ? formatFastTime(horasAyuno) : formatFastTime(a.duracionHoras||0)}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block' }}>{phase.label}{a.activo ? ' · activo' : ''}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ENTRENAMIENTO DEL DÍA */}
+          {(() => {
+            const sesiones = rutinas.flatMap(r =>
+              (r.historial || [])
+                .filter(h => h.fechaISO === selectedDate)
+                .map(h => ({ rutina: r.titulo, detalle: h.detalle, intensidad: h.intensidad || 3 }))
+            );
+            if (sesiones.length === 0) return null;
+            const kcalTotal = sesiones.reduce((a, s) => a + (KCAL_EST[s.intensidad] || 350), 0);
+            return (
+              <div className="training-day-summary">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>💪 Entrenamiento este día</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--soma-orange)', fontWeight: 600 }}>~{kcalTotal} kcal quemadas</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                  {sesiones.map((s, i) => (
+                    <div key={i} className="training-day-chip">
+                      <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{s.rutina}</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.detalle}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* REGISTRO DIARIO — 5 CATEGORÍAS */}
           <div className="daily-log-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
@@ -1427,6 +1725,204 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       )}
 
       {/* ============================================================ */}
+      {/* TAB: METAS                                                    */}
+      {/* ============================================================ */}
+      {activeTab === 'metas' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* --- Metas Corporales --- */}
+          <div className="proyecto-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>Metas Corporales</h3>
+              <button className="btn-icon-action" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} onClick={() => setEditingMetasCorporales(!editingMetasCorporales)}>
+                {editingMetasCorporales ? 'Cancelar' : 'Editar'}
+              </button>
+            </div>
+            {editingMetasCorporales ? (
+              <div>
+                <div className="goals-form-grid">
+                  <div className="input-group"><label>Peso objetivo (kg)</label><input type="number" step="0.1" value={metasCorporalesForm.pesoObj} onChange={e => setMetasCorporalesForm(p => ({ ...p, pesoObj: e.target.value }))} placeholder="Ej. 75" /></div>
+                  <div className="input-group"><label>Abdomen objetivo (cm)</label><input type="number" step="0.1" value={metasCorporalesForm.abdomenObj} onChange={e => setMetasCorporalesForm(p => ({ ...p, abdomenObj: e.target.value }))} placeholder="Ej. 85" /></div>
+                  <div className="input-group"><label>Piernas objetivo (cm)</label><input type="number" step="0.1" value={metasCorporalesForm.piernasObj} onChange={e => setMetasCorporalesForm(p => ({ ...p, piernasObj: e.target.value }))} placeholder="Ej. 55" /></div>
+                  <div className="input-group"><label>Brazos objetivo (cm)</label><input type="number" step="0.1" value={metasCorporalesForm.brazosObj} onChange={e => setMetasCorporalesForm(p => ({ ...p, brazosObj: e.target.value }))} placeholder="Ej. 38" /></div>
+                  <div className="input-group"><label>Días de entrenamiento / semana</label><input type="number" min="1" max="7" value={metasCorporalesForm.diasSemana} onChange={e => setMetasCorporalesForm(p => ({ ...p, diasSemana: e.target.value }))} /></div>
+                </div>
+                <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }} onClick={handleSaveMetasCorporales}>Guardar Metas</button>
+              </div>
+            ) : (
+              <div className="metas-corporales-list">
+                {[
+                  { label: 'Peso',    actual: latestMedidas.peso,    meta: metasCorporales.pesoObj,    unit: 'kg', color: 'var(--soma-purple)' },
+                  { label: 'Abdomen', actual: latestMedidas.abdomen, meta: metasCorporales.abdomenObj, unit: 'cm', color: 'var(--soma-orange)' },
+                  { label: 'Piernas', actual: latestMedidas.piernas, meta: metasCorporales.piernasObj, unit: 'cm', color: '#3498db' },
+                  { label: 'Brazos',  actual: latestMedidas.brazos,  meta: metasCorporales.brazosObj,  unit: 'cm', color: 'var(--soma-yellow)' },
+                ].map(item => {
+                  const hasActual = item.actual != null;
+                  const hasMeta = item.meta && parseFloat(item.meta) > 0;
+                  const pct = hasActual && hasMeta ? Math.min(parseFloat(item.actual) / parseFloat(item.meta), 1.15) * 100 : null;
+                  return (
+                    <div key={item.label} className="meta-corporal-row">
+                      <div className="meta-corporal-labels">
+                        <span className="meta-corporal-name">{item.label}</span>
+                        <span className="meta-corporal-values">
+                          {hasActual ? <strong style={{ color: item.color }}>{item.actual} {item.unit}</strong> : <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Sin registro</span>}
+                          {hasMeta && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}> / meta: {item.meta} {item.unit}</span>}
+                        </span>
+                      </div>
+                      <div className="macro-bar-track">
+                        {hasMeta && <div className="macro-bar-fill" style={{ width: `${pct || 0}%`, backgroundColor: item.color }} />}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Entrenamiento — datos reales de Rutinas */}
+                <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px dashed rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  <div className="meta-corporal-row">
+                    <div className="meta-corporal-labels">
+                      <span className="meta-corporal-name">Esta semana</span>
+                      <span>
+                        <strong style={{ color: diasEntrenadosSemana >= (metasCorporales.diasSemana || 4) ? '#27ae60' : 'var(--soma-purple)' }}>
+                          {diasEntrenadosSemana}
+                        </strong>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}> / {metasCorporales.diasSemana || 4} días</span>
+                      </span>
+                    </div>
+                    <div className="macro-bar-track">
+                      <div className="macro-bar-fill" style={{
+                        width: `${Math.min((diasEntrenadosSemana / (metasCorporales.diasSemana || 4)) * 100, 100)}%`,
+                        backgroundColor: diasEntrenadosSemana >= (metasCorporales.diasSemana || 4) ? '#27ae60' : 'var(--soma-purple)',
+                      }} />
+                    </div>
+                  </div>
+                  <div className="meta-corporal-labels">
+                    <span className="meta-corporal-name">Racha actual</span>
+                    <strong style={{ color: 'var(--soma-orange)' }}>{rachaDiaria} {rachaDiaria === 1 ? 'día' : 'días'}</strong>
+                  </div>
+                  <div className="meta-corporal-labels">
+                    <span className="meta-corporal-name">Últimos 30 días</span>
+                    <span>
+                      <strong style={{ color: 'var(--soma-purple)' }}>{diasEntrenados30}</strong>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}> días entrenados ({Math.round((diasEntrenados30 / 30) * 100)}%)</span>
+                    </span>
+                  </div>
+                </div>
+
+                {!pesoRegistros.length && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0' }}>
+                    Registra tus medidas en la pestaña <strong>Nutrición</strong> para ver el progreso corporal.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* --- Metas de Nutrición Diaria --- */}
+          <div className="proyecto-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>Metas de Nutrición Diaria</h3>
+              <button className="btn-icon-action" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} onClick={() => setEditingMetas(!editingMetas)}>
+                {editingMetas ? 'Cancelar' : 'Editar'}
+              </button>
+            </div>
+            {editingMetas ? (
+              <div>
+                <div className="goals-form-grid">
+                  <div className="input-group"><label>Calorías (kcal)</label><input type="number" min="0" value={metasForm.calorias} onChange={e => setMetasForm(p => ({ ...p, calorias: e.target.value }))} /></div>
+                  <div className="input-group"><label>Proteínas (g)</label><input type="number" min="0" value={metasForm.proteinas} onChange={e => setMetasForm(p => ({ ...p, proteinas: e.target.value }))} /></div>
+                  <div className="input-group"><label>Carbohidratos (g)</label><input type="number" min="0" value={metasForm.carbs} onChange={e => setMetasForm(p => ({ ...p, carbs: e.target.value }))} /></div>
+                  <div className="input-group"><label>Grasas (g)</label><input type="number" min="0" value={metasForm.grasas} onChange={e => setMetasForm(p => ({ ...p, grasas: e.target.value }))} /></div>
+                </div>
+                <button className="btn-primary" style={{ marginTop: '1rem', width: '100%' }} onClick={handleSaveMetas}>Guardar</button>
+              </div>
+            ) : (
+              <div className="goals-display-grid">
+                <div className="goal-display-item"><span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Calorías</span><strong style={{ color: 'var(--soma-purple)' }}>{metasNutricion.calorias} kcal</strong></div>
+                <div className="goal-display-item"><span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Proteínas</span><strong style={{ color: '#3498db' }}>{metasNutricion.proteinas} g</strong></div>
+                <div className="goal-display-item"><span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Carbohidratos</span><strong style={{ color: 'var(--soma-yellow)' }}>{metasNutricion.carbs} g</strong></div>
+                <div className="goal-display-item"><span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Grasas</span><strong style={{ color: 'var(--soma-orange)' }}>{metasNutricion.grasas} g</strong></div>
+              </div>
+            )}
+          </div>
+
+          {/* --- Adherencia Nutricional --- */}
+          {(() => {
+            const svgW = 700, mL = 28, mT = 10, cW = svgW - mL - 10;
+            const barAreaH = 60, baseline = mT + barAreaH;
+            const slotW = cW / 30;
+            const barW = Math.max(slotW - 4, 4);
+            const todayISO = new Date().toISOString().split('T')[0];
+            const hoyCount = adherenciaData[adherenciaData.length - 1]?.count ?? 0;
+            return (
+              <div className="proyecto-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 500 }}>Adherencia Nutricional</h3>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--soma-purple)', fontWeight: 600 }}>{hoyCount}/5 hoy</span>
+                </div>
+                <p style={{ margin: '0 0 0.8rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Categorías de comida registradas por día en los últimos 30 días.</p>
+                <svg viewBox={`0 0 ${svgW} 105`} style={{ width: '100%', height: 'auto' }}>
+                  <text x={mL - 4} y={mT + 4} textAnchor="end" fill="var(--text-secondary)" fontSize="8">5</text>
+                  <text x={mL - 4} y={baseline + 4} textAnchor="end" fill="var(--text-secondary)" fontSize="8">0</text>
+                  <line x1={mL} x2={mL + cW} y1={baseline} y2={baseline} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+                  {adherenciaData.map((d, i) => {
+                    const x = mL + i * slotW + (slotW - barW) / 2;
+                    const barH = (d.count / 5) * barAreaH;
+                    const alpha = d.count === 0 ? 0.05 : 0.18 + (d.count / 5) * 0.82;
+                    const isToday = d.iso === todayISO;
+                    return (
+                      <g key={i}>
+                        <rect x={x} y={baseline - Math.max(barH, d.count > 0 ? 3 : 0)} width={barW} height={Math.max(barH, d.count > 0 ? 3 : 2)} rx="2" fill={`rgba(162,146,197,${alpha})`} />
+                        {isToday && <rect x={x - 1} y={mT} width={barW + 2} height={barAreaH} rx="2" fill="none" stroke="var(--soma-orange)" strokeWidth="1.5" opacity="0.6" />}
+                      </g>
+                    );
+                  })}
+                  {adherenciaData.filter((_, i) => i % 7 === 0).map((d, idx) => (
+                    <text key={idx} x={mL + idx * 7 * slotW + slotW / 2} y={baseline + 18} textAnchor="middle" fill="var(--text-secondary)" fontSize="8">
+                      {new Date(d.iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                    </text>
+                  ))}
+                </svg>
+              </div>
+            );
+          })()}
+
+          {/* --- Resumen de Ayunos --- */}
+          {ayunos.filter(a => !a.activo).length > 0 && (() => {
+            const completados = ayunos.filter(a => !a.activo && a.duracionHoras);
+            const promedio = completados.reduce((s, a) => s + a.duracionHoras, 0) / completados.length;
+            const maximo = Math.max(...completados.map(a => a.duracionHoras));
+            const maxPhase = FASTING_PHASES.find(f => maximo >= f.minH && maximo < f.maxH) || FASTING_PHASES[0];
+            const ayunosUlt30 = completados.filter(a => new Date(a.inicio).toISOString().split('T')[0] >= hace30ISO);
+            return (
+              <div className="proyecto-card">
+                <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 500 }}>Resumen de Ayunos</h3>
+                <div className="goals-display-grid">
+                  <div className="goal-display-item">
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Total registrados</span>
+                    <strong style={{ color: 'var(--soma-purple)' }}>{completados.length}</strong>
+                  </div>
+                  <div className="goal-display-item">
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Últimos 30 días</span>
+                    <strong style={{ color: 'var(--soma-purple)' }}>{ayunosUlt30.length}</strong>
+                  </div>
+                  <div className="goal-display-item">
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Duración promedio</span>
+                    <strong style={{ color: '#3498db' }}>{formatFastTime(promedio)}</strong>
+                  </div>
+                  <div className="goal-display-item">
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Ayuno más largo</span>
+                    <strong style={{ color: maxPhase.color }}>{formatFastTime(maximo)}</strong>
+                    <span style={{ fontSize: '0.72rem', color: maxPhase.color }}>{maxPhase.label}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+        </div>
+      )}
+
+      {/* ============================================================ */}
       {/* MODALES                                                       */}
       {/* ============================================================ */}
 
@@ -1499,6 +1995,36 @@ const Fitness = ({ peso = '', estatura = '' }) => {
           </div>
         </div></div>
       )}
+      {ayunoFormOpen && (
+        <div className="modal-overlay"><div className="modal-content">
+          <h2>Registrar Ayuno</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '-0.5rem 0 1rem' }}>Registra un período de ayuno pasado indicando inicio y fin.</p>
+          <div className="modal-form">
+            <div className="fecha-inputs-row">
+              <div className="input-group"><label>Inicio</label><input type="datetime-local" value={ayunoForm.inicio} onChange={e => setAyunoForm(p => ({ ...p, inicio: e.target.value }))} /></div>
+              <div className="input-group"><label>Fin</label><input type="datetime-local" value={ayunoForm.fin} onChange={e => setAyunoForm(p => ({ ...p, fin: e.target.value }))} /></div>
+            </div>
+            <div className="input-group"><label>Notas (opcional)</label><input type="text" value={ayunoForm.notas} onChange={e => setAyunoForm(p => ({ ...p, notas: e.target.value }))} placeholder="Ej. Me sentí con energía, tuve hambre a las 14h..." /></div>
+            {ayunoForm.inicio && ayunoForm.fin && new Date(ayunoForm.fin) > new Date(ayunoForm.inicio) && (() => {
+              const h = (new Date(ayunoForm.fin) - new Date(ayunoForm.inicio)) / 3600000;
+              const phase = FASTING_PHASES.find(f => h >= f.minH && h < f.maxH) || FASTING_PHASES[0];
+              return (
+                <div className="ayuno-preview-box" style={{ borderLeftColor: phase.color }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Duración: </span>
+                  <strong style={{ color: phase.color }}>{formatFastTime(h)}</strong>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>→ {phase.label}</span>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{phase.desc}</p>
+                </div>
+              );
+            })()}
+          </div>
+          <div className="modal-actions">
+            <button className="btn-secondary" onClick={() => { setAyunoFormOpen(false); setAyunoForm({ inicio: '', fin: '', notas: '' }); }}>Cancelar</button>
+            <button className="btn-primary" onClick={registrarAyunoManual}>Guardar Ayuno</button>
+          </div>
+        </div></div>
+      )}
+
     </div>
   );
 };

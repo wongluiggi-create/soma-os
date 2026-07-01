@@ -1420,3 +1420,490 @@
     grid-column: auto;
   }
 }
+
+/* --- AYUNO INTERMITENTE --- */
+.ayuno-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 12px;
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.5rem;
+  transition: border-color 0.3s ease;
+}
+
+.ayuno-card.ayuno-activo {
+  border-color: rgba(240,127,18,0.4);
+  background: linear-gradient(135deg, rgba(240,127,18,0.05) 0%, rgba(0,0,0,0.1) 100%);
+}
+
+.ayuno-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.ayuno-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--soma-orange);
+  box-shadow: 0 0 0 0 rgba(240,127,18,0.6);
+  animation: fastingPulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes fastingPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(240,127,18,0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(240,127,18,0); }
+  100% { box-shadow: 0 0 0 0 rgba(240,127,18,0); }
+}
+
+.btn-romper-ayuno {
+  padding: 0.4rem 1rem;
+  background: rgba(240,127,18,0.15);
+  border: 1px solid rgba(240,127,18,0.45);
+  border-radius: 8px;
+  color: var(--soma-orange);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-romper-ayuno:hover {
+  background: rgba(240,127,18,0.28);
+}
+
+.btn-iniciar-ayuno {
+  padding: 0.45rem 1.1rem;
+  background: rgba(162,146,197,0.15);
+  border: 1px solid rgba(162,146,197,0.45);
+  border-radius: 8px;
+  color: var(--soma-purple);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-iniciar-ayuno:hover {
+  background: rgba(162,146,197,0.28);
+}
+
+.ayuno-timer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.ayuno-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.ayuno-start-time {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ayuno-timer {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Barra de fases */
+.ayuno-bar-wrap {
+  margin-bottom: 1rem;
+}
+
+.ayuno-bar-track {
+  position: relative;
+  height: 10px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  overflow: visible;
+  display: flex;
+}
+
+.ayuno-segment {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 0;
+  transition: background-color 0.4s ease;
+}
+.ayuno-segment:first-child { border-radius: 6px 0 0 6px; }
+.ayuno-segment:last-child  { border-radius: 0 6px 6px 0; }
+
+.ayuno-marker {
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 18px;
+  background: #fff;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 6px rgba(255,255,255,0.6);
+  transition: left 0.4s ease;
+  pointer-events: none;
+}
+
+.ayuno-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+}
+
+/* Info de la fase actual */
+.ayuno-phase-box {
+  border-left: 3px solid;
+  padding: 0.6rem 0.8rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Vista inactiva */
+.ayuno-idle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.ayuno-history-list {
+  margin-top: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  padding-top: 0.8rem;
+}
+
+.ayuno-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.ayuno-history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ayuno-history-dur {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.ayuno-history-date {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.ayuno-history-notes {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.ayuno-phase-badge {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid;
+  background: transparent;
+  white-space: nowrap;
+}
+
+/* Indicador de ayuno en vista diaria */
+.ayuno-day-summary {
+  padding: 0.8rem 1rem;
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.ayuno-day-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+}
+
+/* Indicador en celda del calendario semanal */
+.nutri-day-fast {
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+/* Preview del ayuno en modal */
+.ayuno-preview-box {
+  border-left: 3px solid;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 0 8px 8px 0;
+  margin-top: 0.5rem;
+}
+
+/* --- ENTRENAMIENTO DEL DÍA (vista diaria nutrición) --- */
+.training-day-summary {
+  padding: 0.8rem 1rem;
+  background: rgba(240, 127, 18, 0.05);
+  border: 1px solid rgba(240, 127, 18, 0.2);
+  border-radius: 10px;
+  margin-bottom: 1rem;
+}
+
+.training-day-chip {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.7rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(240, 127, 18, 0.18);
+  border-radius: 8px;
+  gap: 0.15rem;
+}
+
+/* Indicador de entrenamiento en celda del calendario */
+.nutri-day-train {
+  font-size: 0.65rem;
+  line-height: 1;
+}
+
+/* --- FORMULARIO DE MEDIDAS CORPORALES --- */
+.medida-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.medida-form-grid input[type="number"] {
+  padding: 0.45rem 0.7rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.medida-form-grid input[type="number"]:focus {
+  outline: none;
+  border-color: rgba(162, 146, 197, 0.5);
+}
+
+.medida-btn-full {
+  grid-column: 1 / -1;
+  padding: 0.5rem 1rem !important;
+  font-size: 0.85rem !important;
+}
+
+.medida-badge {
+  font-size: 0.68rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(162, 146, 197, 0.12);
+  color: var(--soma-purple);
+  border: 1px solid rgba(162, 146, 197, 0.25);
+  white-space: nowrap;
+}
+
+@media (max-width: 500px) {
+  .medida-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- CALENDARIO SEMANAL DE NUTRICIÓN --- */
+.nutri-week-card {
+  margin-bottom: 1.5rem;
+}
+
+.nutri-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.5rem;
+}
+
+.nutri-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.3rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  min-width: 0;
+}
+
+.nutri-day-cell:hover {
+  border-color: rgba(162, 146, 197, 0.35);
+  background: rgba(162, 146, 197, 0.05);
+}
+
+.nutri-day-cell.selected {
+  border-color: var(--soma-purple, #a292c5);
+  background: rgba(162, 146, 197, 0.1);
+}
+
+.nutri-day-cell.today {
+  border-color: rgba(240, 127, 18, 0.45);
+}
+
+.nutri-day-name {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.nutri-day-num {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.nutri-day-num.today {
+  color: var(--soma-orange);
+}
+
+.nutri-bar-bg {
+  width: 6px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  margin: 0.1rem 0;
+}
+
+.nutri-bar-fill {
+  width: 100%;
+  border-radius: 3px;
+  transition: height 0.4s ease;
+  min-height: 2px;
+}
+
+.nutri-day-kcal {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nutri-day-cats {
+  font-size: 0.6rem;
+  color: var(--soma-purple);
+  font-weight: 600;
+}
+
+@media (max-width: 540px) {
+  .nutri-week-grid {
+    gap: 0.3rem;
+  }
+  .nutri-day-cell {
+    padding: 0.4rem 0.15rem;
+  }
+  .nutri-day-num {
+    font-size: 0.8rem;
+  }
+}
+
+/* --- TAB: METAS --- */
+.metas-corporales-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.meta-corporal-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.meta-corporal-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.meta-corporal-name {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.meta-corporal-values {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.goals-display-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+}
+
+.goal-display-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+}
+
+.goal-display-item strong {
+  font-size: 1.1rem;
+}
+
+@media (max-width: 500px) {
+  .goals-display-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
