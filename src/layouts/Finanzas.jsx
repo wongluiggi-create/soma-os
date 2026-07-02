@@ -57,7 +57,7 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
   const totalAhorrado = metas.reduce((acc, curr) => acc + parseFloat(curr.actual), 0);
 
   // --- Formateador de Moneda ---
-  const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'USD' }).format(value);
+  const formatCurrency = (value) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
 
   // --- Manipulación de Transacciones ---
   const handleCreateTx = async () => {
@@ -403,7 +403,7 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
                 </div>
                 <div className="input-group">
                   <label>Monto</label>
-                  <input type="number" value={newTxForm.monto} onChange={e => setNewTxForm(prev => ({ ...prev, monto: e.target.value }))} placeholder="0.00" />
+                  <input type="number" value={newTxForm.monto} onChange={e => setNewTxForm(prev => ({ ...prev, monto: e.target.value }))} placeholder="0" />
                 </div>
               </div>
               <div className="input-group">
@@ -464,7 +464,7 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
               <div className="fecha-inputs-row">
                 <div className="input-group">
                   <label>Precio Total</label>
-                  <input type="number" value={newDeseoForm.precio} onChange={e => setNewDeseoForm(prev => ({ ...prev, precio: e.target.value }))} placeholder="0.00" />
+                  <input type="number" value={newDeseoForm.precio} onChange={e => setNewDeseoForm(prev => ({ ...prev, precio: e.target.value }))} placeholder="0" />
                 </div>
                 <div className="input-group">
                   <label>Dividir en (Meses/Cuotas)</label>
@@ -492,7 +492,7 @@ const Finanzas = ({ categoriasIngreso = [], categoriasEgreso = [], tarjetas = []
               </div>
               <div className="input-group">
                 <label>Monto Objetivo</label>
-                <input type="number" value={newMetaForm.objetivo} onChange={e => setNewMetaForm(prev => ({ ...prev, objetivo: e.target.value }))} placeholder="0.00" />
+                <input type="number" value={newMetaForm.objetivo} onChange={e => setNewMetaForm(prev => ({ ...prev, objetivo: e.target.value }))} placeholder="0" />
               </div>
             </div>
             <div className="modal-actions">

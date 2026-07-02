@@ -2,7 +2,6 @@
    TABLERO — Modal de Diagramas tipo Miro
    ============================================ */
 
-/* Overlay de fondo */
 .tablero-overlay {
   position: fixed;
   inset: 0;
@@ -21,7 +20,6 @@
   to   { opacity: 1; }
 }
 
-/* Modal principal */
 .tablero-modal {
   width: calc(100vw - 2.5rem);
   height: calc(100vh - 2.5rem);
@@ -34,6 +32,7 @@
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
   animation: t-slideIn 0.2s ease;
   font-family: 'Grift', system-ui, sans-serif;
+  position: relative;
 }
 
 @keyframes t-slideIn {
@@ -68,13 +67,10 @@
   gap: 0.9rem;
 }
 
-.t-status {
-  font-size: 0.72rem;
-  font-weight: 400;
-}
-
+.t-status { font-size: 0.72rem; font-weight: 400; }
 .t-status.saving { color: var(--text-secondary); }
 .t-status.saved  { color: #5cc86e; }
+.t-status.error  { color: #e05555; }
 
 .tablero-close {
   background: none;
@@ -87,7 +83,6 @@
   line-height: 1;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-
 .tablero-close:hover {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.08);
@@ -98,7 +93,7 @@
 .tablero-toolbar {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
   padding: 0.45rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   background: rgba(0, 0, 0, 0.15);
@@ -117,31 +112,32 @@
   border-radius: 6px;
   font-size: 0.78rem;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
   font-family: inherit;
 }
-
-.t-btn:hover {
+.t-btn:hover:not(:disabled) {
   background: rgba(240, 127, 18, 0.12);
   border-color: rgba(240, 127, 18, 0.4);
   color: var(--soma-orange);
 }
-
+.t-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 .t-btn-danger:hover {
-  background: rgba(220, 60, 60, 0.12);
-  border-color: rgba(220, 60, 60, 0.4);
-  color: #e05555;
+  background: rgba(220, 60, 60, 0.12) !important;
+  border-color: rgba(220, 60, 60, 0.4) !important;
+  color: #e05555 !important;
 }
 
 .t-sep {
   width: 1px;
   height: 18px;
   background: rgba(255, 255, 255, 0.1);
-  margin: 0 0.1rem;
+  margin: 0 0.05rem;
   flex-shrink: 0;
 }
 
-/* Toggle de fondo (puntos / líneas / ninguno) */
 .t-bg-toggle {
   display: flex;
   align-items: center;
@@ -164,22 +160,47 @@
   transition: background 0.15s, color 0.15s;
   line-height: 1;
 }
-
-.t-bg-btn:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text-primary);
-}
-
-.t-bg-btn.active {
-  background: rgba(162, 146, 197, 0.18);
-  color: var(--soma-purple);
-}
+.t-bg-btn:hover { background: rgba(255, 255, 255, 0.07); color: var(--text-primary); }
+.t-bg-btn.active { background: rgba(162, 146, 197, 0.18); color: var(--soma-purple); }
 
 .t-hint {
-  font-size: 0.69rem;
+  font-size: 0.66rem;
   color: var(--text-secondary);
   margin-left: auto;
-  opacity: 0.7;
+  opacity: 0.6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+/* ---- Loading ---- */
+.t-loading {
+  position: absolute;
+  inset: 0;
+  top: 88px; /* below header+toolbar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: #181b1e;
+  z-index: 10;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.t-loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(162, 146, 197, 0.2);
+  border-top-color: var(--soma-purple);
+  border-radius: 50%;
+  animation: t-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes t-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ---- Canvas ---- */
@@ -189,10 +210,7 @@
   overflow: hidden;
 }
 
-/* Override colores internos de React Flow */
-.tablero-canvas .react-flow {
-  background: #181b1e;
-}
+.tablero-canvas .react-flow { background: #181b1e; }
 
 .tablero-canvas .react-flow__controls {
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -200,13 +218,11 @@
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
-
 .tablero-canvas .react-flow__controls-button {
   background: #2a2e32;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   fill: var(--text-secondary);
 }
-
 .tablero-canvas .react-flow__controls-button:hover {
   background: rgba(255, 255, 255, 0.08);
   fill: var(--text-primary);
@@ -216,26 +232,59 @@
   stroke: rgba(162, 146, 197, 0.55);
   stroke-width: 1.8;
 }
-
 .tablero-canvas .react-flow__edge-interaction {
   stroke-width: 20;
   cursor: pointer;
 }
-
 .tablero-canvas .react-flow__edge:hover .react-flow__edge-path {
   stroke: rgba(162, 146, 197, 0.85);
   stroke-width: 2.2;
 }
-
 .tablero-canvas .react-flow__edge.selected .react-flow__edge-path {
   stroke: var(--soma-purple);
   stroke-width: 2.2;
 }
-
 .tablero-canvas .react-flow__connection-path {
   stroke: var(--soma-orange);
   stroke-width: 2;
   stroke-dasharray: 5 3;
+}
+
+/* Edge labels */
+.tablero-canvas .react-flow__edge-label {
+  font-family: 'Grift', system-ui, sans-serif;
+  font-size: 0.72rem;
+}
+.tablero-canvas .react-flow__edge-textwrapper {
+  background: #1e2124;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(162, 146, 197, 0.3);
+}
+
+/* ---- Editor flotante de etiqueta de arista ---- */
+.t-edge-label-editor {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  z-index: 3000;
+  background: #1a1d20;
+  border: 1px solid rgba(162, 146, 197, 0.4);
+  border-radius: 7px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.t-edge-label-editor input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-family: 'Grift', system-ui, sans-serif;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.5rem;
+  min-width: 160px;
 }
 
 /* ============================================
@@ -263,41 +312,27 @@
   font-synthesis: none;
   -webkit-font-synthesis: none;
 }
-
 .t-node:active { cursor: grabbing; }
-
 .t-node.t-selected {
   border-color: var(--soma-purple);
   box-shadow: 0 0 0 2px rgba(162, 146, 197, 0.18);
 }
 
-/* Sin recuadro (por defecto) */
 .t-text-plain {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
   padding: 0.25rem 0.4rem;
 }
+.t-text-plain:hover { border-color: rgba(255, 255, 255, 0.12) !important; border-style: dashed !important; }
+.t-text-plain.t-selected { border-color: rgba(162, 146, 197, 0.45) !important; border-style: dashed !important; box-shadow: none !important; }
 
-.t-text-plain:hover {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-  border-style: dashed !important;
-}
-
-.t-text-plain.t-selected {
-  border-color: rgba(162, 146, 197, 0.45) !important;
-  border-style: dashed !important;
-  box-shadow: none !important;
-}
-
-/* Con recuadro */
 .t-text-boxed {
   background: #2a2e32;
   border-color: rgba(255, 255, 255, 0.16);
   padding: 0.55rem 0.8rem;
 }
 
-/* Contenido */
 .t-node-label {
   word-break: break-word;
   white-space: pre-wrap;
@@ -313,13 +348,10 @@
   font-style: italic;
   pointer-events: none;
 }
-
 .t-text-plain .t-placeholder { opacity: 0; transition: opacity 0.15s; }
 .t-text-plain:hover .t-placeholder,
 .t-text-plain.t-selected .t-placeholder { opacity: 1; }
 
-/* Wrapper interno que contiene el contenido y recorta el overflow
-   sin afectar al format bar (que es hermano, positioned absolute) */
 .t-node-body {
   width: 100%;
   flex: 1;
@@ -331,7 +363,6 @@
   justify-content: center;
 }
 
-/* Textarea de edición */
 .t-node-input {
   background: transparent;
   border: none;
@@ -345,7 +376,7 @@
 }
 
 /* ============================================
-   BARRA DE FORMATO (texto)
+   BARRA DE FORMATO
    ============================================ */
 
 .t-format-bar {
@@ -379,20 +410,16 @@
   line-height: 1;
   font-family: inherit;
 }
+.t-node-btn:hover           { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+.t-node-btn-delete:hover    { background: rgba(220,60,60,0.13); color: #e05555; }
+.t-node-btn-dup:hover       { background: rgba(162,146,197,0.15); color: var(--soma-purple); }
 
-.t-node-btn:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
-
-.t-node-btn-delete:hover { background: rgba(220,60,60,0.13); color: #e05555; }
-.t-node-btn-dup:hover { background: rgba(162,146,197,0.15); color: var(--soma-purple); }
-
-.t-fmt-btn { min-width: 18px; }
-
+.t-fmt-btn       { min-width: 18px; }
 .t-fmt-btn.active {
   background: rgba(162, 146, 197, 0.18);
   color: var(--soma-purple);
 }
 
-/* Separador vertical */
 .t-sep-v {
   display: inline-block;
   width: 1px;
@@ -402,7 +429,6 @@
   flex-shrink: 0;
 }
 
-/* Selector de tamaño de fuente */
 .t-size-select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -414,10 +440,8 @@
   font-family: inherit;
   width: 38px;
 }
-
 .t-size-select option { background: #1e2124; }
 
-/* Selector de peso de fuente */
 .t-weight-select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -429,17 +453,14 @@
   font-family: 'Grift', system-ui, sans-serif;
   width: 68px;
 }
-
 .t-weight-select option { background: #1e2124; font-family: 'Grift', system-ui, sans-serif; }
 
-/* Input de color de texto */
 .t-color-pick {
   position: relative;
   display: flex;
   align-items: center;
   cursor: pointer;
 }
-
 .t-color-dot {
   width: 14px;
   height: 14px;
@@ -448,7 +469,9 @@
   display: block;
   flex-shrink: 0;
 }
-
+.t-color-dot-bg {
+  border-radius: 3px; /* cuadrado para diferenciar del color de texto */
+}
 .t-color-pick input[type="color"] {
   position: absolute;
   opacity: 0;
@@ -460,7 +483,7 @@
 }
 
 /* ============================================
-   NODOS DE ÁREA (formas)
+   NODOS DE FORMA (ShapeNode)
    ============================================ */
 
 .t-shape-area {
@@ -468,17 +491,14 @@
   border-radius: 6px;
   position: relative;
   cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.t-shape-area:active  { cursor: grabbing; }
+.t-shape-area-circle  { border-radius: 50%; }
+.t-shape-selected { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15); }
 
-.t-shape-area:active { cursor: grabbing; }
-
-.t-shape-area-circle { border-radius: 50%; }
-
-.t-shape-selected {
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
-}
-
-/* Barra de acciones de forma (abajo del área) */
 .t-shape-actions {
   position: absolute;
   top: calc(100% + 8px);
@@ -496,7 +516,35 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
 
-/* Swatches de color para formas */
+/* Texto dentro de la forma */
+.t-shape-label-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  padding: 0.5rem;
+}
+.t-shape-label {
+  text-align: center;
+  word-break: break-word;
+  cursor: text;
+  line-height: 1.3;
+  font-family: 'Grift', system-ui, sans-serif;
+  user-select: none;
+}
+input.t-shape-label {
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(255,255,255,0.3);
+  outline: none;
+  text-align: center;
+  font-family: 'Grift', system-ui, sans-serif;
+  width: 90%;
+  padding: 0;
+}
+
 .t-color-swatch {
   width: 16px;
   height: 16px;
@@ -507,15 +555,197 @@
   flex-shrink: 0;
   transition: transform 0.12s, border-color 0.12s;
 }
+.t-color-swatch:hover  { transform: scale(1.2); }
+.t-color-swatch.active { border-color: rgba(255, 255, 255, 0.8); transform: scale(1.15); }
 
-.t-color-swatch:hover { transform: scale(1.2); }
+/* ============================================
+   NODO STICKY (nota adhesiva)
+   ============================================ */
 
-.t-color-swatch.active {
-  border-color: rgba(255, 255, 255, 0.8);
-  transform: scale(1.15);
+.t-sticky {
+  background: var(--sticky-bg, #fef08a);
+  border-radius: 4px 4px 4px 4px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.25);
+  overflow: visible;
+  box-sizing: border-box;
+}
+.t-sticky:active { cursor: grabbing; }
+
+.t-sticky-selected {
+  box-shadow: 2px 3px 8px rgba(0,0,0,0.25), 0 0 0 2px rgba(162, 146, 197, 0.6);
 }
 
-/* Handles — ocultos por defecto, aparecen al hover del nodo */
+/* Esquina doblada */
+.t-sticky-corner {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(225deg, rgba(0,0,0,0.18) 50%, transparent 50%);
+  border-top-left-radius: 3px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.t-sticky-text {
+  padding: 0.6rem 0.75rem;
+  font-family: 'Grift', system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: #1a1a1a;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+  flex: 1;
+  overflow: hidden;
+}
+.t-sticky-placeholder {
+  color: rgba(0, 0, 0, 0.3);
+  font-style: italic;
+  font-size: 0.75rem;
+}
+
+.t-sticky-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Grift', system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: #1a1a1a;
+  line-height: 1.5;
+  resize: none;
+  flex: 1;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  box-sizing: border-box;
+}
+
+.t-sticky-actions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1a1d20;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 7px;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Handle especial para sticky (oscuro para contrastar con fondos claros) */
+.t-handle-sticky {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.5) !important;
+}
+.react-flow__node:hover .t-handle-sticky { opacity: 1 !important; }
+
+/* ============================================
+   NODO DE IMAGEN
+   ============================================ */
+
+.t-image-node {
+  background: #2a2e32;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.t-image-node:active  { cursor: grabbing; }
+.t-image-node.t-selected { border-color: var(--soma-purple); box-shadow: 0 0 0 2px rgba(162,146,197,0.18); }
+
+.t-image-content {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 6px;
+}
+
+.t-image-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 1rem;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+}
+.t-image-empty:hover { color: rgba(255, 255, 255, 0.35); }
+
+.t-image-actions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #1a1d20;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 4px 7px;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+.t-image-url-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.4rem 0.5rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+.t-image-url-form input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.4rem;
+  flex: 1;
+  font-family: inherit;
+  outline: none;
+}
+.t-image-url-form button {
+  background: var(--soma-purple);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ============================================
+   HANDLES
+   ============================================ */
+
 .t-handle {
   opacity: 0 !important;
   background: rgba(255, 255, 255, 0.55) !important;
@@ -525,27 +755,23 @@
   border-radius: 50% !important;
   transition: opacity 0.15s, transform 0.15s, background 0.15s !important;
 }
-
 .react-flow__node:hover .t-handle,
 .react-flow__handle.connecting,
-.react-flow__handle.valid {
-  opacity: 1 !important;
-}
-
+.react-flow__handle.valid { opacity: 1 !important; }
 .t-handle:hover {
   background: rgba(255, 255, 255, 0.9) !important;
   transform: scale(1.25) !important;
 }
 
 /* ============================================
-   MODO LISTA (dentro de TextNode)
+   MODO LISTA (TextNode)
    ============================================ */
 
-/* Cuando el nodo de texto está en modo lista, alineamos al inicio */
 .t-node:has(.t-lista-content) {
   align-items: flex-start;
   justify-content: flex-start;
   min-width: 200px;
+  height: auto !important;
 }
 
 .t-lista-content {
@@ -555,14 +781,6 @@
   user-select: none;
 }
 
-/* El nodo en modo lista se ajusta al contenido (sin altura fija) */
-.t-node:has(.t-lista-content) {
-  height: auto !important;
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-
-/* Cabecera */
 .t-lista-header {
   display: flex;
   align-items: center;
@@ -579,7 +797,6 @@
   min-width: 0;
   word-break: break-word;
 }
-
 input.t-lista-titulo {
   background: transparent;
   border: none;
@@ -591,7 +808,6 @@ input.t-lista-titulo {
   padding: 0;
 }
 
-/* Cuerpo con los ítems */
 .t-lista-body {
   padding: 0.35rem 0.5rem 0.5rem;
   display: flex;
@@ -607,10 +823,30 @@ input.t-lista-titulo {
   border-radius: 4px;
   transition: background 0.1s;
 }
-
 .t-lista-item-row:hover { background: rgba(255,255,255,0.03); }
+.t-lista-item-row.t-item-dragging { opacity: 0.4; }
 
-/* Botón +/- de expansión — en el título de la lista */
+.t-drag-handle {
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.18);
+  cursor: grab;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0 1px;
+  user-select: none;
+  transition: color 0.12s;
+}
+.t-lista-item-row:hover .t-drag-handle { color: rgba(255,255,255,0.4); }
+.t-drag-handle:active { cursor: grabbing; }
+
+.t-lista-check {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  accent-color: var(--soma-purple);
+  cursor: pointer;
+}
+
 .t-toggle-btn {
   flex-shrink: 0;
   width: 18px;
@@ -629,14 +865,12 @@ input.t-lista-titulo {
   padding: 0;
   transition: color 0.12s, background 0.12s, border-color 0.12s;
 }
-
 .t-toggle-btn:hover {
   background: rgba(162, 146, 197, 0.22);
   border-color: var(--soma-purple);
   color: var(--text-primary);
 }
 
-/* Texto del ítem */
 .t-lista-item-titulo {
   flex: 1;
   font-size: 0.8rem;
@@ -645,7 +879,6 @@ input.t-lista-titulo {
   min-width: 0;
   word-break: break-word;
 }
-
 input.t-lista-item-titulo {
   background: transparent;
   border: none;
@@ -658,7 +891,6 @@ input.t-lista-item-titulo {
   padding: 0 0 1px;
 }
 
-/* Botón × eliminar ítem/detalle */
 .t-lista-x {
   flex-shrink: 0;
   background: none;
@@ -671,16 +903,10 @@ input.t-lista-item-titulo {
   border-radius: 3px;
   transition: color 0.12s, background 0.12s;
 }
-
 .t-lista-x:hover { color: #e05555; background: rgba(220,60,60,0.12); }
 
-/* Ítem activo (recibe el foco de formato) */
-.t-item-active {
-  background: rgba(162, 146, 197, 0.07);
-  border-radius: 3px;
-}
+.t-item-active { background: rgba(162, 146, 197, 0.07); border-radius: 3px; }
 
-/* Marcador de viñeta o número */
 .t-lista-marker {
   flex-shrink: 0;
   width: 18px;
@@ -693,7 +919,6 @@ input.t-lista-item-titulo {
   user-select: none;
 }
 
-/* Botón tipo de lista en format bar */
 .t-list-type-btn {
   font-size: 0.72rem;
   font-weight: 600;
@@ -714,10 +939,9 @@ input.t-lista-item-titulo {
   width: 100%;
   transition: color 0.12s;
 }
-
 .t-lista-add-item:hover { color: var(--text-secondary); }
 
-/* ---- Botón para abrir el tablero desde las tarjetas ---- */
+/* ---- Botón para abrir el tablero ---- */
 .btn-tablero {
   display: inline-flex;
   align-items: center;
@@ -732,21 +956,13 @@ input.t-lista-item-titulo {
   transition: background 0.15s, border-color 0.15s;
   font-family: inherit;
 }
-
 .btn-tablero:hover {
   background: rgba(162, 146, 197, 0.18);
   border-color: var(--soma-purple);
 }
 
-/* Responsive: en pantallas muy pequeñas, el modal ocupa toda la pantalla */
+/* Responsive */
 @media (max-width: 600px) {
-  .tablero-modal {
-    width: 100vw;
-    height: 100vh;
-    border-radius: 0;
-  }
-
-  .t-hint {
-    display: none;
-  }
+  .tablero-modal { width: 100vw; height: 100vh; border-radius: 0; }
+  .t-hint { display: none; }
 }
