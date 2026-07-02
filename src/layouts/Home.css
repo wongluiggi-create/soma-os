@@ -38,23 +38,71 @@
 
 /* Tareas Pendientes Destacadas */
 .header-task-stat {
-  background-color: rgba(240, 127, 18, 0.15);
-  border: 1px solid rgba(240, 127, 18, 0.5);
-  padding: 0.6rem 1.2rem;
+  background-color: rgba(240, 127, 18, 0.12);
+  border: 1px solid rgba(240, 127, 18, 0.45);
+  padding: 0.7rem 1.3rem;
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.55rem;
   width: 40%;
   color: var(--soma-orange);
-  box-shadow: 0 4px 12px rgba(240, 127, 18, 0.15);
+  box-shadow: 0 4px 12px rgba(240, 127, 18, 0.12);
   text-align: center;
 }
 
+.task-stat-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
 .task-stat-number { font-size: 1.8rem; font-weight: 700; line-height: 1; }
-.task-stat-label { font-size: 0.7rem; text-transform: uppercase; font-weight: 600; line-height: 1.2; letter-spacing: 0.5px;}
+.task-stat-label  { font-size: 0.68rem; text-transform: uppercase; font-weight: 600; line-height: 1.2; letter-spacing: 0.5px; }
+
+/* Desglose por módulo */
+.task-stat-breakdown {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid rgba(240, 127, 18, 0.25);
+  padding-top: 0.45rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.task-stat-module {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.task-stat-mod-count {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--soma-orange);
+}
+
+.task-stat-mod-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 500;
+  color: rgba(240, 127, 18, 0.65);
+  line-height: 1;
+}
+
+.task-stat-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(240, 127, 18, 0.25);
+  flex-shrink: 0;
+}
 
 /* --- DASHBOARD GRID --- */
 .dashboard-grid {

@@ -144,17 +144,23 @@ const Home = ({ userName }) => {
     id: h.id, nombre: h.nombre, completado: !!(h.registros && h.registros[todayStr])
   })).slice(0, 5);
 
-  // Calculo de total de tareas pendientes en todos los módulos
-  let totalTareas = 0;
-  const countT = (list) => list.forEach(item => {
-     if (!item.archivada && item.estado !== 'completado') {
-       if (item.tareas) totalTareas += item.tareas.filter(t => !t.completada).length;
-       if (item.subCategorias) {
-          item.subCategorias.forEach(sc => { if (sc.tareas) totalTareas += sc.tareas.filter(t => !t.completada).length; });
-       }
-     }
-  });
-  countT(proyectos); countT(areas); countT(cursos); countT(notas);
+  // Tareas pendientes por módulo
+  const contarTareasPendientes = (list, tieneEstado = true) =>
+    list
+      .filter(item => !item.archivada && (!tieneEstado || item.estado !== 'completado'))
+      .reduce((acc, item) => {
+        let n = (item.tareas || []).filter(t => !t.completada).length;
+        (item.subCategorias || []).forEach(sc => {
+          n += (sc.tareas || []).filter(t => !t.completada).length;
+        });
+        return acc + n;
+      }, 0);
+
+  const tareasNotas     = contarTareasPendientes(notas,    false);
+  const tareasCursos    = contarTareasPendientes(cursos,   true);
+  const tareasProyectos = contarTareasPendientes(proyectos, true);
+  const tareasAreas     = contarTareasPendientes(areas,    true);
+  const totalTareas     = tareasNotas + tareasCursos + tareasProyectos + tareasAreas;
 
   const toggleActivityLevel = async (index) => {
     const newGraph = [...activityGraph];
@@ -192,8 +198,31 @@ const Home = ({ userName }) => {
           <p className="home-date-subtitle">{currentDate}</p>
         </div>
         <div className="header-task-stat">
-          <span className="task-stat-number">{totalTareas}</span>
-          <span className="task-stat-label">Tareas Pendientes</span>
+          <div className="task-stat-top">
+            <span className="task-stat-number">{totalTareas}</span>
+            <span className="task-stat-label">Tareas Pendientes</span>
+          </div>
+          <div className="task-stat-breakdown">
+            <div className="task-stat-module">
+              <span className="task-stat-mod-count">{tareasNotas}</span>
+              <span className="task-stat-mod-label">Notas</span>
+            </div>
+            <span className="task-stat-divider" />
+            <div className="task-stat-module">
+              <span className="task-stat-mod-count">{tareasCursos}</span>
+              <span className="task-stat-mod-label">Cursos</span>
+            </div>
+            <span className="task-stat-divider" />
+            <div className="task-stat-module">
+              <span className="task-stat-mod-count">{tareasProyectos}</span>
+              <span className="task-stat-mod-label">Proyectos</span>
+            </div>
+            <span className="task-stat-divider" />
+            <div className="task-stat-module">
+              <span className="task-stat-mod-count">{tareasAreas}</span>
+              <span className="task-stat-mod-label">Áreas</span>
+            </div>
+          </div>
         </div>
       </header>
 
