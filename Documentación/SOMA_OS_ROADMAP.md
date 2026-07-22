@@ -29,10 +29,10 @@ Soma OS v1 está completo y desplegado en producción. Los 8 módulos (Dashboard
 | ID | Descripción | Módulo | Impacto |
 |---|---|---|---|
 | DT-05 | El Tablero kanban (`Tablero.jsx`) existe como componente separado pero no está integrado visualmente al flujo de Proyectos — requiere navegación adicional. | Proyectos | UX |
-| DT-06 | El gráfico de Volumen Semanal en Fitness siempre muestra datos en cero — no conecta con los registros reales de entrenamiento. | Fitness | Funcionalidad |
+| ~~DT-06~~ | ~~El gráfico de Volumen Semanal en Fitness siempre muestra datos en cero — no conecta con los registros reales de entrenamiento.~~ **Resuelto:** el gráfico de Actividad Semanal ahora usa la intensidad real de los registros de sesiones. | Fitness | Funcionalidad |
 | DT-07 | No hay validación de formularios (ej. monto vacío en Finanzas, nombre vacío en Hábitos). | Global | Robustez |
 | DT-08 | `Proyectos.css` actúa como archivo de estilos compartidos pero no está estructurado como tal. Si Proyectos.jsx cambia su CSS, puede romper otros módulos. | Global | Mantenibilidad |
-| DT-09 | Las imágenes subidas a Firebase Storage no tienen límite de tamaño en el cliente. | Fitness, Configuración | Costos |
+| ~~DT-09~~ | ~~Las imágenes subidas a Firebase Storage no tienen límite de tamaño en el cliente.~~ **Resuelto:** se eliminó la subida de imágenes de ejercicios (módulo Fitness simplificado). Solo persiste para avatares de perfil en Configuración. | Configuración | Costos |
 
 ### Baja prioridad
 
@@ -81,7 +81,7 @@ Soma OS v1 está completo y desplegado en producción. Los 8 módulos (Dashboard
 
 | ID | Bug | Reproducción | Estado |
 |---|---|---|---|
-| B-01 | El gráfico de Volumen Semanal en Fitness muestra siempre 0 | Ir a Fitness → ver el gráfico inferior | Abierto |
+| ~~B-01~~ | ~~El gráfico de Volumen Semanal en Fitness muestra siempre 0~~ | — | **Resuelto** |
 | B-02 | Si el usuario no tiene hábitos creados, el gráfico de Hábitos muestra una línea en el fondo del SVG | Ir a Hábitos con lista vacía | Abierto |
 | B-03 | En el Dashboard, el contador de tareas pendientes puede quedar desactualizado si se completan tareas en otro módulo mientras el Dashboard está abierto (depende del timing de `onSnapshot`) | Difícil de reproducir consistentemente | Abierto |
 
@@ -99,6 +99,7 @@ Soma OS v1 está completo y desplegado en producción. Los 8 módulos (Dashboard
 | Inicio | Estado en App.jsx sobre Context/Zustand | Suficiente para la escala actual, más simple de mantener |
 | v1 | SVG nativo para gráficos | Evitar dependencia de Chart.js o Recharts |
 | v1 | @xyflow/react instalado | Preparación para Tablero y potencial módulo de Mapa Mental |
+| v1.1 | Fitness sin tracking de ejercicios/series | Simplificar el flujo de registro: el usuario ingresa directamente las calorías quemadas por sesión en lugar de llevar un tracker de series por ejercicio |
 
 ---
 

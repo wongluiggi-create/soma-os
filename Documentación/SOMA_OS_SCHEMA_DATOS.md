@@ -252,41 +252,27 @@ Schema idéntico al de `proyectos` con campo adicional:
 
 | Campo | Tipo | Descripción |
 |---|---|---|
-| `nombre` | `string` | Nombre de la rutina |
+| `titulo` | `string` | Nombre de la rutina |
 | `estado` | `'activo' \| 'descanso'` | Estado de la rutina |
-| `dias` | `number[]` | Días asignados (0=Lunes … 6=Domingo) |
-| `etiquetas` | `string[]` | Tags de la rutina (ej. "Gym", "Cardio") |
-| `ejercicios` | `Ejercicio[]` | Lista de ejercicios |
+| `diasAsignados` | `number[]` | Días asignados (0=Lunes … 6=Domingo) |
+| `fechasEspecificas` | `string[]` | Fechas puntuales fijadas (YYYY-MM-DD) |
+| `categorias` | `string[]` | Tags de la rutina (ej. "Gym", "Cardio") |
 | `enlaces` | `Enlace[]` | Videos o guías de referencia |
 | `archivada` | `boolean` | Si está archivada |
 | `historial` | `RegistroEntrenamiento[]` | Sesiones registradas |
-| `creadoEn` | `Timestamp` | Timestamp de creación |
-
-### Tipo: Ejercicio
-```typescript
-{
-  id: string;
-  nombre: string;
-  series: number;
-  repeticiones: number;
-  peso: number;
-  imagenes: string[];           // URLs de Firebase Storage (máx 2)
-  seriesCompletadas: boolean[]; // array de longitud = series
-}
-```
+| `createdAt` | `string` | ISO timestamp de creación |
 
 ### Tipo: RegistroEntrenamiento
 ```typescript
 {
-  id: string;
-  fecha: string;           // YYYY-MM-DD
-  rutinaNombre: string;
-  seriesCompletadas: number;
-  totalSeries: number;
+  id: number;              // Date.now() al momento del registro
+  fecha: string;           // Fecha formateada localizada (ej. "22/7/2026")
+  fechaISO: string;        // Fecha en formato YYYY-MM-DD
+  detalle: string;         // Ej. "350 kcal quemadas"
+  caloriasQuemadas: number; // Calorías quemadas ingresadas por el usuario
+  intensidad: number;      // Nivel 1–5 (usado para el mapa de calor anual)
 }
 ```
-
-**Nota sobre Storage:** Las imágenes de ejercicios se almacenan en Firebase Storage bajo el path `fitness/{timestamp}_{nombreArchivo}`. La URL de descarga se guarda en `ejercicio.imagenes[]`.
 
 ---
 
@@ -311,10 +297,8 @@ Schema idéntico al de `proyectos` con campo adicional:
 
 ```
 Firebase Storage
-├── avatares/
-│   └── {uid}              ← foto de perfil del usuario
-└── fitness/
-    └── {timestamp}_{nombre_archivo}   ← imágenes de ejercicios
+└── avatares/
+    └── {uid}              ← foto de perfil del usuario
 ```
 
 ---

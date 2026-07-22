@@ -184,16 +184,17 @@ Seguimiento de entrenamiento físico y plan de alimentación.
 
 **Rutinas de Entrenamiento:**
 - Crear rutina con nombre y estado (activo / descanso)
-- Asignar la rutina a días de la semana específicos (botones L/M/M/J/V/S/D que se activan/desactivan)
+- Asignar la rutina a días de la semana arrastrándola al calendario o con los botones L/M/X/J/V/S/D
+- Fijar la rutina a una fecha específica con el pin 📌 en el calendario
 - Añadir etiquetas/categorías a la rutina (ej. Gym, Cardio, Casa)
-- Agregar ejercicios con: nombre, series, repeticiones y peso
-- Tracker de series por ejercicio (checkbox por serie numerada)
-- Subir hasta 2 imágenes de referencia por ejercicio (se almacenan en Firebase Storage)
-- Barra de progreso de la sesión actual (series completadas / total)
-- Botón "Registrar Entrenamiento" que guarda el registro en el historial y resetea el tracker
 - Adjuntar enlaces de referencia (videos, guías)
+- Hacer clic en "Registrar sesión" para abrir el formulario inline:
+  - Ingresar las **calorías quemadas** (kcal)
+  - Seleccionar el **nivel de intensidad** (1–5 puntos naranjas)
+- El registro se guarda en el historial y alimenta el mapa de calor anual
+- Deshacer el último registro con el botón ↩ en el calendario
 - Archivar/desarchivar rutinas
-- Historial de entrenamientos en tabla (fecha, rutina, series completadas)
+- Historial de entrenamientos en tabla (fecha, rutina, calorías quemadas)
 
 **Plan de Alimentación:**
 - Registrar comidas con: tipo, hora, descripción, calorías, proteínas, carbohidratos y grasas
@@ -205,8 +206,8 @@ Seguimiento de entrenamiento físico y plan de alimentación.
 - Clasificación: Bajo Peso / Peso Saludable / Sobrepeso / Obesidad
 - Gráfico de relación estatura/peso (barras verticales)
 
-**Gráfico Volumen Semanal:**
-- Curva suavizada en naranja que proyecta el volumen de entrenamiento de los últimos 7 días (actualmente con datos base en cero, se activa con registros reales)
+**Gráfico Actividad Semanal:**
+- Curva suavizada en naranja que muestra la intensidad de entrenamiento de los últimos 7 días, basada en los registros de sesiones completadas
 
 ---
 

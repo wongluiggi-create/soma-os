@@ -389,38 +389,26 @@ Motor idéntico al de Proyectos + Áreas con la adición de **categorías de cur
 ```
 {
   id: string,
-  nombre: string,
+  titulo: string,
   estado: 'activo' | 'descanso',
-  dias: [0..6] (índices de día de la semana, Lunes=0),
-  etiquetas: [string],
-  ejercicios: [Ejercicio],
+  diasAsignados: [0..6] (índices de día de la semana, Lunes=0),
+  fechasEspecificas: [string] (fechas YYYY-MM-DD fijadas puntualmente),
+  categorias: [string],
   enlaces: [{ titulo, url }],
-  archivada: boolean
-}
-```
-
-**Entidad: Ejercicio**
-```
-{
-  id: string,
-  nombre: string,
-  series: number,
-  repeticiones: number,
-  peso: number,
-  imagenes: [string] (URLs de Firebase Storage, máx 2),
-  seriesCompletadas: [boolean]
+  archivada: boolean,
+  historial: [RegistroEntrenamiento]
 }
 ```
 
 **Entidad: Registro de Entrenamiento**
 ```
 {
-  id: string,
-  rutinaId: string,
-  rutinaNombre: string,
-  fecha: string,
-  seriesCompletadas: number,
-  totalSeries: number
+  id: number,              // Date.now()
+  fecha: string,           // fecha formateada localizada
+  fechaISO: string,        // YYYY-MM-DD
+  detalle: string,         // "350 kcal quemadas"
+  caloriasQuemadas: number,
+  intensidad: number       // 1–5 para el mapa de calor anual
 }
 ```
 
@@ -446,17 +434,16 @@ Motor idéntico al de Proyectos + Áreas con la adición de **categorías de cur
 - Indicador de racha de entrenamiento (🧊/🏃/🔥/⚡)
 
 *Rutinas:*
-- Crear rutina con nombre y estado
-- Asignar a días de la semana (botones L/M/X/J/V/S/D toggle)
+- Crear rutina con nombre y estado (activo / descanso)
+- Asignar a días de la semana con drag & drop al calendario o toggle L/M/X/J/V/S/D
+- Fijar rutina a fechas específicas (pin 📌)
 - Agregar etiquetas/categorías a la rutina
-- Agregar ejercicios con nombre, series, repeticiones y peso
-- Tracker de series: checkbox numerado por cada serie de cada ejercicio
-- Subir hasta 2 imágenes de referencia por ejercicio (a Firebase Storage)
-- Barra de progreso de la sesión: series completadas / total de series
-- "Registrar Entrenamiento" → guarda registro en historial + resetea checkboxes
 - Adjuntar enlaces de referencia (videos, guías)
+- Al hacer clic en "Registrar sesión": formulario inline para ingresar calorías quemadas (kcal) y nivel de intensidad (1–5)
+- Guardar el registro en el historial con calorías e intensidad
+- Intensidad registrada alimenta el mapa de calor anual y el gráfico de proyección de peso
 - Archivar/desarchivar rutinas
-- Historial de entrenamientos (tabla con fecha, rutina, series completadas)
+- Historial de entrenamientos (tabla con fecha, rutina, calorías quemadas)
 
 *Plan de Alimentación:*
 - Registrar comidas con tipo, hora, descripción y macros
@@ -468,9 +455,10 @@ Motor idéntico al de Proyectos + Áreas con la adición de **categorías de cur
 - Clasificaciones: Bajo Peso (<18.5) / Peso Saludable (18.5–24.9) / Sobrepeso (25–29.9) / Obesidad (≥30)
 
 **Criterios de aceptación:**
-- [ ] Las imágenes de ejercicios se suben a Firebase Storage y la URL se guarda en Firestore
-- [ ] "Registrar Entrenamiento" solo está activo si hay al menos una serie completada
-- [ ] El historial muestra % de completitud de la sesión (series completadas / total)
+- [x] "Registrar sesión" muestra formulario inline con campo de calorías e intensidad
+- [x] El historial muestra las calorías quemadas de cada sesión
+- [x] El gráfico de proyección de peso usa las calorías reales de los entrenamientos
+- [x] El mapa de calor anual refleja la intensidad registrada por sesión
 - [ ] El IMC se actualiza si el usuario modifica peso o estatura en Configuración
 
 ---
