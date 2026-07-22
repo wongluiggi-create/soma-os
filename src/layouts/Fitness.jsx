@@ -55,24 +55,22 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const [metasForm, setMetasForm] = useState({ calorias: 2000, proteinas: 150, carbs: 250, grasas: 65 });
 
   // --- RUTINAS STATES ---
-  const [isExerciseModalOpen, setIsExerciseModalOpen] = useState(false);
-  const [activeRutinaId, setActiveRutinaId] = useState(null);
-  const [newExerciseForm, setNewExerciseForm] = useState({ nombre: '', series: 4, reps: '10', peso: '' });
   const [isRutinaModalOpen, setIsRutinaModalOpen] = useState(false);
   const [newRutinaForm, setNewRutinaForm] = useState({ titulo: '', estado: 'activo' });
   const [isComidaModalOpen, setIsComidaModalOpen] = useState(false);
   const [newComidaForm, setNewComidaForm] = useState({ tipo: '', hora: '', descripcion: '', calorias: '', proteina: '', carbs: '', grasas: '' });
+  const [registroActivo, setRegistroActivo] = useState(null);
+  const [registroCalForm, setRegistroCalForm] = useState({ calorias: '', intensidad: 3 });
 
   // --- AYUNO STATES ---
   const [ayunos, setAyunos] = useState([]);
-  const [nowTick, setNowTick] = useState(Date.now());
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [ayunoFormOpen, setAyunoFormOpen] = useState(false);
   const [ayunoForm, setAyunoForm] = useState({ inicio: '', fin: '', notas: '' });
 
   const [draggingRutinaId, setDraggingRutinaId] = useState(null);
   const [draggingFromDay, setDraggingFromDay] = useState(null);
   const [dragOverDay, setDragOverDay] = useState(null);
-  const [localSeries, setLocalSeries] = useState({});
   const [dayPage, setDayPage] = useState(0);
   const [expandedDays, setExpandedDays] = useState(new Set());
 
@@ -179,7 +177,7 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     rutinas.forEach(r => {
       (r.historial || []).forEach(h => {
         if (h.fechaISO) {
-          burnMap[h.fechaISO] = (burnMap[h.fechaISO] || 0) + (KCAL_POR_INTENSIDAD[h.intensidad] || 250);
+          burnMap[h.fechaISO] = (burnMap[h.fechaISO] || 0) + (h.caloriasQuemadas || KCAL_POR_INTENSIDAD[h.intensidad] || 250);
           workoutDaysSet.add(h.fechaISO);
         }
       });
@@ -499,12 +497,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
   const prevWeek = () => { const d = new Date(currentWeekStart); d.setDate(d.getDate() - 7); setCurrentWeekStart(d); };
   const nextWeek = () => { const d = new Date(currentWeekStart); d.setDate(d.getDate() + 7); setCurrentWeekStart(d); };
 
-  const completedPerDay = weekDays.map(date => {
-    const dayISO = date.toISOString().split('T')[0];
-    return rutinas.reduce((count, r) =>
-      count + (r.historial || []).filter(h => h.fechaISO === dayISO).length, 0
-    );
-  });
   // Intensidad manual por día: máximo nivel (1-5) registrado ese día
   const HEAT_OPACITIES = [0, 0.18, 0.36, 0.55, 0.73, 0.92];
   const intensidadPerDay = weekDays.map(date => {
@@ -541,34 +533,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'rutinas', id), data);
   };
 
-  const toggleSerie = async (rutinaId, ejercicioId, idx) => {
-    const r = rutinas.find(r => r.id === rutinaId);
-    if (r && auth.currentUser) {
-      const ejs = r.ejercicios.map(e => {
-        if (e.id !== ejercicioId) return e;
-        const s = [...e.seriesEstado]; s[idx] = !s[idx]; return { ...e, seriesEstado: s };
-      });
-      await updateRutinaDB(rutinaId, { ejercicios: ejs });
-    }
-  };
-
-  const getLocalSeries = (rutinaId, dayISO, ejercicios) => {
-    const key = `${rutinaId}_${dayISO}`;
-    return localSeries[key] || ejercicios.map(e => Array(e.series).fill(false));
-  };
-
-  const toggleLocalSerie = (rutinaId, ejercicioId, idx, dayISO) => {
-    const rutina = rutinas.find(r => r.id === rutinaId);
-    if (!rutina) return;
-    const key = `${rutinaId}_${dayISO}`;
-    const current = localSeries[key] || rutina.ejercicios.map(e => Array(e.series).fill(false));
-    const updated = current.map((arr, ejIdx) => {
-      if (rutina.ejercicios[ejIdx]?.id !== ejercicioId) return arr;
-      const n = [...arr]; n[idx] = !n[idx]; return n;
-    });
-    setLocalSeries(prev => ({ ...prev, [key]: updated }));
-  };
-
   const toggleFechaEspecifica = async (rutinaId, dayISO) => {
     const r = rutinas.find(r => r.id === rutinaId);
     if (!r || !auth.currentUser) return;
@@ -585,18 +549,21 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     await updateRutinaDB(rutinaId, { historial: r.historial.filter((_, i) => i !== idx) });
   };
 
-  const registrarEntrenamiento = async (rutinaId, dayISO, viaVideo = false) => {
+  const registrarEntrenamiento = async (rutinaId, dayISO, calorias, intensidad = 3) => {
     const r = rutinas.find(r => r.id === rutinaId);
     if (r && auth.currentUser) {
-      const total = r.ejercicios.reduce((a, e) => a + e.series, 0);
-      const seriesState = localSeries[`${rutinaId}_${dayISO}`] || r.ejercicios.map(e => Array(e.series).fill(false));
-      const done  = seriesState.reduce((a, arr) => a + arr.filter(Boolean).length, 0);
-      const detalle = viaVideo ? 'Completado vía video' : `${done}/${total} series completadas`;
-      const intensidad = r.intensidadPendiente || 3;
-      const reg   = { id: Date.now(), fecha: new Date(dayISO + 'T12:00:00').toLocaleDateString(), fechaISO: dayISO, detalle, source: viaVideo ? 'video' : 'manual', seriesCompletadas: viaVideo ? total : done, seriesTotal: total, intensidad };
-      const reset = r.ejercicios.map(e => ({ ...e, seriesEstado: Array(e.series).fill(false) }));
-      await updateRutinaDB(rutinaId, { historial: [reg, ...(r.historial || [])], ejercicios: reset, intensidadPendiente: 0 });
-      setLocalSeries(prev => { const n = { ...prev }; delete n[`${rutinaId}_${dayISO}`]; return n; });
+      const kcal = parseInt(calorias) || 0;
+      const reg = {
+        id: Date.now(), // eslint-disable-line react-hooks/purity
+        fecha: new Date(dayISO + 'T12:00:00').toLocaleDateString(),
+        fechaISO: dayISO,
+        detalle: kcal > 0 ? `${kcal} kcal quemadas` : 'Completado',
+        caloriasQuemadas: kcal,
+        intensidad,
+      };
+      await updateRutinaDB(rutinaId, { historial: [reg, ...(r.historial || [])] });
+      setRegistroActivo(null);
+      setRegistroCalForm({ calorias: '', intensidad: 3 });
     }
   };
 
@@ -669,22 +636,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
     });
     setIsRutinaModalOpen(false);
     setNewRutinaForm({ titulo: '', estado: 'activo' });
-  };
-
-  const handleCreateExercise = async () => {
-    if (!newExerciseForm.nombre) return alert('El nombre del ejercicio es obligatorio');
-    if (!auth.currentUser) return;
-    const n = parseInt(newExerciseForm.series) || 1;
-    const r = rutinas.find(r => r.id === activeRutinaId);
-    if (r) await updateRutinaDB(activeRutinaId, {
-      ejercicios: [...r.ejercicios, {
-        id: Date.now(), nombre: newExerciseForm.nombre, series: n,
-        reps: newExerciseForm.reps, peso: newExerciseForm.peso,
-        seriesEstado: Array(n).fill(false), imagenes: [],
-      }],
-    });
-    setIsExerciseModalOpen(false);
-    setNewExerciseForm({ nombre: '', series: 4, reps: '10', peso: '' });
   };
 
   const rutinasActivas   = rutinas.filter(r => !r.archivada);
@@ -891,11 +842,8 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                             <div className="cal-empty-day">Sin rutinas</div>
                           )}
                           {visibleRoutines.map(rutina => {
-                            const localSer   = getLocalSeries(rutina.id, dayISO, rutina.ejercicios);
-                            const total      = rutina.ejercicios.reduce((a, e) => a + e.series, 0);
-                            const done       = localSer.reduce((a, arr) => a + arr.filter(Boolean).length, 0);
-                            const progreso   = total > 0 ? Math.round((done / total) * 100) : 0;
                             const isDoneToday = (rutina.historial || []).some(h => h.fechaISO === dayISO);
+                            const isRegistrando = registroActivo?.rutinaId === rutina.id && registroActivo?.dayISO === dayISO;
                             return (
                               <div
                                 key={rutina.id}
@@ -918,38 +866,34 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                                   )}
                                 </div>
 
-                                <div className="progress-bar-bg" style={{ marginTop: '0.35rem', height: '4px' }}>
-                                  <div className="progress-bar-fill" style={{ width: `${progreso}%` }} />
-                                </div>
-
-                                <div className="cal-exercise-list">
-                                  {rutina.ejercicios.map((ej, ejIdx) => (
-                                    <div key={ej.id} className="cal-exercise-row">
-                                      <span className="cal-exercise-name" title={ej.nombre}>{ej.nombre}</span>
-                                      <div className="series-tracker" style={{ gap: '3px' }}>
-                                        {(localSer[ejIdx] || []).map((s, idx) => (
-                                          <label key={idx} className="serie-checkbox-wrapper">
-                                            <input type="checkbox" checked={s} onChange={() => toggleLocalSerie(rutina.id, ej.id, idx, dayISO)} />
-                                            <div className="serie-checkbox-custom" style={{ width: '18px', height: '18px', fontSize: '0.6rem' }}>{idx + 1}</div>
-                                          </label>
+                                <div className="register-workout-row" style={{ marginTop: '0.5rem' }}>
+                                  {isRegistrando ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+                                      <input
+                                        type="number" min="0" placeholder="Kcal quemadas"
+                                        value={registroCalForm.calorias}
+                                        onChange={e => setRegistroCalForm(p => ({ ...p, calorias: e.target.value }))}
+                                        style={{ width: '100%', padding: '0.35rem 0.5rem', borderRadius: '5px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.78rem' }}
+                                        autoFocus
+                                      />
+                                      <div className="intensity-dots" style={{ justifyContent: 'center' }}>
+                                        {[1,2,3,4,5].map(n => (
+                                          <button key={n} className={`intensity-dot${registroCalForm.intensidad === n ? ' active' : ''}`} style={{ width: '14px', height: '14px', opacity: registroCalForm.intensidad === n ? 1 : 0.25 }} onClick={() => setRegistroCalForm(p => ({ ...p, intensidad: n }))} />
                                         ))}
                                       </div>
+                                      <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                        <button className="btn-secondary" style={{ flex: 1, fontSize: '0.72rem', padding: '0.25rem' }} onClick={() => setRegistroActivo(null)}>×</button>
+                                        <button className="btn-primary" style={{ flex: 1, fontSize: '0.72rem', padding: '0.25rem' }} onClick={() => registrarEntrenamiento(rutina.id, dayISO, registroCalForm.calorias, registroCalForm.intensidad)}>✓</button>
+                                      </div>
                                     </div>
-                                  ))}
-                                </div>
-
-                                <div className="register-workout-row" style={{ marginTop: '0.5rem' }}>
-                                  <button
-                                    className={`btn-register-workout ${progreso === 100 ? 'complete' : progreso > 0 ? 'partial' : ''}`}
-                                    onClick={() => registrarEntrenamiento(rutina.id, dayISO)}
-                                    title={`${done}/${total} series`}
-                                  >
-                                    <span className="register-check">✓</span>
-                                    <span>Registrar</span>
-                                    <span className="register-progress">{done}/{total}</span>
-                                  </button>
-                                  {(rutina.enlaces || []).some(e => e.guardado) && (
-                                    <button className="btn-register-video" onClick={() => registrarEntrenamiento(rutina.id, dayISO, true)} title="Vía video">🎬</button>
+                                  ) : (
+                                    <button
+                                      className="btn-register-workout"
+                                      onClick={() => { setRegistroActivo({ rutinaId: rutina.id, dayISO }); setRegistroCalForm({ calorias: '', intensidad: 3 }); }}
+                                    >
+                                      <span className="register-check">✓</span>
+                                      <span>Registrar</span>
+                                    </button>
                                   )}
                                 </div>
                                 {isDoneToday && (
@@ -989,9 +933,9 @@ const Fitness = ({ peso = '', estatura = '' }) => {
 
               <div className="proyectos-grid">
                 {rutinasActivas.map(rutina => {
-                  const total     = rutina.ejercicios.reduce((a, e) => a + e.series, 0);
-                  const done      = rutina.ejercicios.reduce((a, e) => a + e.seriesEstado.filter(Boolean).length, 0);
-                  const progreso  = total > 0 ? Math.round((done / total) * 100) : 0;
+                  const todayCardISO = new Date().toISOString().split('T')[0];
+                  const isDoneToday = (rutina.historial || []).some(h => h.fechaISO === todayCardISO);
+                  const isRegistrando = registroActivo?.rutinaId === rutina.id && registroActivo?.dayISO === todayCardISO;
                   return (
                     <div
                       key={rutina.id}
@@ -1024,35 +968,7 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                         </div>
                       </div>
 
-                      <div className="proyecto-progress">
-                        <div className="progress-info"><span>Progreso</span><span>{progreso}%</span></div>
-                        <div className="progress-bar-bg"><div className="progress-bar-fill" style={{ width: `${progreso}%` }}></div></div>
-                      </div>
-
-                      <div className="exercise-list">
-                        {rutina.ejercicios.map(ej => (
-                          <div key={ej.id} className="exercise-item">
-                            <div className="exercise-main-content">
-                              <div className="exercise-info">
-                                <span className="exercise-name">{ej.nombre}</span>
-                                <span className="exercise-details">{ej.series} series × {ej.reps}{ej.peso && ` | ⚖️ ${ej.peso}`}</span>
-                              </div>
-                              <div className="series-tracker">
-                                {ej.seriesEstado.map((s, idx) => (
-                                  <label key={idx} className="serie-checkbox-wrapper">
-                                    <input type="checkbox" checked={s} onChange={() => toggleSerie(rutina.id, ej.id, idx)} />
-                                    <div className="serie-checkbox-custom">{idx + 1}</div>
-                                  </label>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <button className="btn-add-subcat" style={{ marginTop: '0.5rem' }} onClick={() => { setActiveRutinaId(rutina.id); setIsExerciseModalOpen(true); }}>+ Añadir Ejercicio</button>
-
-                      <div className="enlaces-container" style={{ marginTop: '1rem' }}>
+                      <div className="enlaces-container" style={{ marginTop: '0.75rem' }}>
                         {(rutina.enlaces || []).map(enlace => (
                           !enlace.guardado ? (
                             <div key={enlace.id} className="link-editor-container">
@@ -1078,26 +994,44 @@ const Fitness = ({ peso = '', estatura = '' }) => {
                         <button className="btn-add-link" onClick={() => agregarEnlaceRutina(rutina.id)}>+ Añadir Enlace</button>
                       </div>
 
-                      <div className="register-workout-row">
-                        <button
-                          className={`btn-register-workout ${progreso === 100 ? 'complete' : progreso > 0 ? 'partial' : ''}`}
-                          onClick={() => registrarEntrenamiento(rutina.id, new Date().toISOString().split('T')[0])}
-                          title={`${done}/${total} series completadas`}
-                        >
-                          <span className="register-check">✓</span>
-                          <span>Registrar</span>
-                          <span className="register-progress">{done}/{total}</span>
-                        </button>
-                        {(rutina.enlaces || []).some(e => e.guardado) && (
+                      <div className="register-workout-row" style={{ marginTop: '1rem' }}>
+                        {isRegistrando ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+                            <input
+                              type="number" min="0" placeholder="Calorías quemadas (kcal)"
+                              value={registroCalForm.calorias}
+                              onChange={e => setRegistroCalForm(p => ({ ...p, calorias: e.target.value }))}
+                              style={{ width: '100%', padding: '0.4rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+                              autoFocus
+                            />
+                            <div className="intensity-picker" style={{ margin: 0 }}>
+                              <span className="intensity-picker-label">Intensidad</span>
+                              <div className="intensity-dots">
+                                {[1,2,3,4,5].map(n => (
+                                  <button key={n} className={`intensity-dot${registroCalForm.intensidad === n ? ' active' : ''}`} style={{ opacity: registroCalForm.intensidad === n ? 1 : 0.25 }} onClick={() => setRegistroCalForm(p => ({ ...p, intensidad: n }))} title={['Mínima','Baja','Media','Alta','Máxima'][n-1]} />
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.4rem' }}>
+                              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setRegistroActivo(null)}>Cancelar</button>
+                              <button className="btn-primary" style={{ flex: 1 }} onClick={() => registrarEntrenamiento(rutina.id, todayCardISO, registroCalForm.calorias, registroCalForm.intensidad)}>Confirmar</button>
+                            </div>
+                          </div>
+                        ) : (
                           <button
-                            className="btn-register-video"
-                            onClick={() => registrarEntrenamiento(rutina.id, new Date().toISOString().split('T')[0], true)}
-                            title="Registrar como completado vía video"
+                            className={`btn-register-workout ${isDoneToday ? 'complete' : ''}`}
+                            onClick={() => { setRegistroActivo({ rutinaId: rutina.id, dayISO: todayCardISO }); setRegistroCalForm({ calorias: '', intensidad: 3 }); }}
                           >
-                            🎬
+                            <span className="register-check">✓</span>
+                            <span>{isDoneToday ? 'Registrar otra sesión' : 'Registrar sesión'}</span>
                           </button>
                         )}
                       </div>
+                      {isDoneToday && !isRegistrando && (
+                        <p className="cal-done-label" style={{ margin: '0.4rem 0 0', fontSize: '0.75rem' }}>
+                          ✓ {(rutina.historial || []).filter(h => h.fechaISO === todayCardISO).map(h => h.detalle).join(' · ')}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -1597,10 +1531,10 @@ const Fitness = ({ peso = '', estatura = '' }) => {
             const sesiones = rutinas.flatMap(r =>
               (r.historial || [])
                 .filter(h => h.fechaISO === selectedDate)
-                .map(h => ({ rutina: r.titulo, detalle: h.detalle, intensidad: h.intensidad || 3 }))
+                .map(h => ({ rutina: r.titulo, detalle: h.detalle, caloriasQuemadas: h.caloriasQuemadas, intensidad: h.intensidad || 3 }))
             );
             if (sesiones.length === 0) return null;
-            const kcalTotal = sesiones.reduce((a, s) => a + (KCAL_EST[s.intensidad] || 350), 0);
+            const kcalTotal = sesiones.reduce((a, s) => a + (s.caloriasQuemadas || KCAL_EST[s.intensidad] || 350), 0);
             return (
               <div className="training-day-summary">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1925,24 +1859,6 @@ const Fitness = ({ peso = '', estatura = '' }) => {
       {/* ============================================================ */}
       {/* MODALES                                                       */}
       {/* ============================================================ */}
-
-      {isExerciseModalOpen && (
-        <div className="modal-overlay"><div className="modal-content">
-          <h2>Añadir Ejercicio</h2>
-          <div className="modal-form">
-            <div className="input-group"><label>Nombre del Ejercicio</label><input type="text" value={newExerciseForm.nombre} onChange={e => setNewExerciseForm(p => ({ ...p, nombre: e.target.value }))} placeholder="Ej. Sentadilla búlgara..." /></div>
-            <div className="fecha-inputs-row">
-              <div className="input-group"><label>N° de Series</label><input type="number" min="1" max="10" value={newExerciseForm.series} onChange={e => setNewExerciseForm(p => ({ ...p, series: e.target.value }))} /></div>
-              <div className="input-group"><label>Repeticiones</label><input type="text" value={newExerciseForm.reps} onChange={e => setNewExerciseForm(p => ({ ...p, reps: e.target.value }))} placeholder="Ej. 10-12, Al fallo..." /></div>
-            </div>
-            <div className="input-group"><label>Peso (Opcional)</label><input type="text" value={newExerciseForm.peso} onChange={e => setNewExerciseForm(p => ({ ...p, peso: e.target.value }))} placeholder="Ej. 20 kg, Corporal..." /></div>
-          </div>
-          <div className="modal-actions">
-            <button className="btn-secondary" onClick={() => setIsExerciseModalOpen(false)}>Cancelar</button>
-            <button className="btn-primary" onClick={handleCreateExercise}>Guardar Ejercicio</button>
-          </div>
-        </div></div>
-      )}
 
       {isRutinaModalOpen && (
         <div className="modal-overlay"><div className="modal-content">
