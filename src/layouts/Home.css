@@ -329,3 +329,7 @@
     display: none !important;
   }
 }
+/* ── Widget Hoy en Calendario ── */
+.hoy-evento-item { display: flex; gap: 0.6rem; align-items: center; padding: 5px 8px; border-radius: 5px; border-left: 3px solid; }
+.hoy-evento-hora { font-size: 0.72rem; color: var(--text-secondary); white-space: nowrap; min-width: 52px; }
+.hoy-evento-titulo { font-size: 0.82rem; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

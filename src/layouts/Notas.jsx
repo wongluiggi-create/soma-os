@@ -1,80 +1,218 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { auth, db } from '../firebase';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
-import './Proyectos.css'; // Reutilizamos los estilos de los otros módulos
+import { useGoogleCalendar, getEventColor } from '../hooks/useGoogleCalendar';
+import './Proyectos.css';
+import './Notas.css';
 
+const DIAS_SEMANA = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const getTodayStr = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`; };
+
+// ── Agenda 7 días ────────────────────────────────────────────
+const Agenda7Dias = ({ eventos }) => {
+  const today = new Date();
+  const dias = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const evsDia = eventos.filter(ev => (ev.start?.date || ev.start?.dateTime?.split('T')[0]) === dateStr);
+    return { d, dateStr, evsDia };
+  });
+  return (
+    <div className="agenda-7dias">
+      <h4 className="agenda-titulo">Próximos 7 días</h4>
+      {dias.map(({ d, dateStr, evsDia }) => (
+        <div key={dateStr} className={`agenda-dia${dateStr === getTodayStr() ? ' agenda-dia-hoy' : ''}`}>
+          <div className="agenda-dia-label">
+            <span className="agenda-dia-nombre">{d.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+            <span className="agenda-dia-num">{d.getDate()}</span>
+          </div>
+          <div className="agenda-eventos">
+            {evsDia.length === 0
+              ? <span className="agenda-sin-eventos">Sin eventos</span>
+              : evsDia.map((ev, i) => {
+                  const color = getEventColor(ev);
+                  const hora = ev.start?.dateTime ? new Date(ev.start.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día';
+                  return (
+                    <div key={i} className="agenda-evento-item" style={{ borderLeftColor: color, backgroundColor: `${color}18` }}>
+                      <span className="agenda-evento-hora">{hora}</span>
+                      <span className="agenda-evento-titulo">{ev.summary}</span>
+                    </div>
+                  );
+                })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Vista Semanal ────────────────────────────────────────────
+const VistaSemanal = ({ eventos }) => {
+  const [semanaBase, setSemanaBase] = useState(() => {
+    const d = new Date(); const day = d.getDay(); d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day)); return d;
+  });
+  const diasSemana = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(semanaBase); d.setDate(semanaBase.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    return { d, dateStr, evsDia: eventos.filter(ev => (ev.start?.date || ev.start?.dateTime?.split('T')[0]) === dateStr) };
+  });
+  const irSemana = (n) => { const d = new Date(semanaBase); d.setDate(d.getDate() + n * 7); setSemanaBase(d); };
+  const rangoLabel = `${diasSemana[0].d.getDate()} ${MESES[diasSemana[0].d.getMonth()].slice(0,3)} — ${diasSemana[6].d.getDate()} ${MESES[diasSemana[6].d.getMonth()].slice(0,3)}`;
+  const todayDateStr = getTodayStr();
+  return (
+    <div className="calendar-grid-wrapper">
+      <div className="calendar-nav">
+        <button className="btn-calendar-nav" onClick={() => irSemana(-1)}>‹</button>
+        <span>{rangoLabel}</span>
+        <button className="btn-calendar-nav" onClick={() => irSemana(1)}>›</button>
+      </div>
+      <div className="semanal-grid">
+        {diasSemana.map(({ d, dateStr, evsDia }) => (
+          <div key={dateStr} className={`semanal-col${dateStr === todayDateStr ? ' semanal-col-hoy' : ''}`}>
+            <div className="semanal-header">
+              <span className="semanal-dia-nombre">{d.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+              <span className={`semanal-dia-num${dateStr === todayDateStr ? ' semanal-hoy-num' : ''}`}>{d.getDate()}</span>
+            </div>
+            <div className="semanal-eventos">
+              {evsDia.map((ev, i) => {
+                const color = getEventColor(ev);
+                const hora = ev.start?.dateTime ? new Date(ev.start.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
+                return (
+                  <div key={i} className="semanal-evento" style={{ backgroundColor: `${color}25`, borderLeft: `3px solid ${color}` }} title={ev.summary}>
+                    {hora && <span className="semanal-evento-hora">{hora}</span>}
+                    <span className="semanal-evento-texto">{ev.summary}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── Vista Mensual ────────────────────────────────────────────
+const VistaMensual = ({ eventos }) => {
+  const [mesActual, setMesActual] = useState(new Date());
+  const year = mesActual.getFullYear(); const month = mesActual.getMonth();
+  const firstDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayDateStr = getTodayStr();
+  const eventosPorDia = useMemo(() => {
+    const map = {};
+    eventos.forEach(ev => { const f = ev.start?.date || ev.start?.dateTime?.split('T')[0]; if (f) { if (!map[f]) map[f] = []; map[f].push(ev); } });
+    return map;
+  }, [eventos]);
+  const celdas = [];
+  for (let i = 0; i < firstDayOfWeek; i++) celdas.push(<div key={`e${i}`} className="calendar-day empty" />);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evs = eventosPorDia[dateStr] || [];
+    celdas.push(
+      <div key={d} className={`calendar-day${dateStr === todayDateStr ? ' today' : ''}`}>
+        <span className="day-number">{d}</span>
+        {evs.slice(0, 2).map((ev, i) => {
+          const color = getEventColor(ev);
+          return <div key={i} className="event-chip" style={{ backgroundColor: `${color}22`, borderLeft: `2px solid ${color}` }} title={ev.summary}>{ev.summary}</div>;
+        })}
+        {evs.length > 2 && <div className="event-more">+{evs.length - 2}</div>}
+      </div>
+    );
+  }
+  return (
+    <div className="calendar-grid-wrapper">
+      <div className="calendar-nav">
+        <button className="btn-calendar-nav" onClick={() => setMesActual(new Date(year, month - 1))}>‹</button>
+        <span>{MESES[month]} {year}</span>
+        <button className="btn-calendar-nav" onClick={() => setMesActual(new Date(year, month + 1))}>›</button>
+      </div>
+      <div className="calendar-grid">
+        {DIAS_SEMANA.map((d, i) => <div key={i} className="calendar-day-header">{d}</div>)}
+        {celdas}
+      </div>
+    </div>
+  );
+};
+
+// ── CalendarGrid con toggle ──────────────────────────────────
+const CalendarGrid = ({ eventos }) => {
+  const [vista, setVista] = useState('mensual');
+  return (
+    <div>
+      <div className="calendar-view-toggle">
+        <button className={`btn-vista${vista === 'mensual' ? ' active' : ''}`} onClick={() => setVista('mensual')}>Mensual</button>
+        <button className={`btn-vista${vista === 'semanal' ? ' active' : ''}`} onClick={() => setVista('semanal')}>Semanal</button>
+      </div>
+      {vista === 'mensual' ? <VistaMensual eventos={eventos} /> : <VistaSemanal eventos={eventos} />}
+      <Agenda7Dias eventos={eventos} />
+    </div>
+  );
+};
+
+// ── Notas ────────────────────────────────────────────────────
 const Notas = () => {
+  const { token, eventos, cargando, error: calError, conectar, desconectar, crearEvento } = useGoogleCalendar();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newNotaForm, setNewNotaForm] = useState({ titulo: '', descripcion: '' });
-
   const [notas, setNotas] = useState([]);
+  const [tareaEventoModal, setTareaEventoModal] = useState(null);
+  const [crearEventoError, setCrearEventoError] = useState('');
+  const [crearEventoLoading, setCrearEventoLoading] = useState(false);
 
-  // --- CONEXIÓN EN TIEMPO REAL CON FIREBASE ---
+  const eventosPorDia = useMemo(() => {
+    const map = {};
+    eventos.forEach(ev => { const f = ev.start?.date || ev.start?.dateTime?.split('T')[0]; if (f) { if (!map[f]) map[f] = []; map[f].push(ev); } });
+    return map;
+  }, [eventos]);
+
   useEffect(() => {
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
-
     const q = query(collection(db, 'usuarios', uid, 'notas'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setNotas(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    });
-
+    const unsubscribe = onSnapshot(q, (snap) => setNotas(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
     return () => unsubscribe();
   }, []);
 
-  // --- Funciones para la manipulación de Notas ---
   const handleCreateNota = async () => {
-    if (!newNotaForm.titulo) return alert("El título es obligatorio");
+    if (!newNotaForm.titulo) return alert('El título es obligatorio');
     if (!auth.currentUser) return;
-
-    const nuevaNota = {
-      titulo: newNotaForm.titulo,
-      descripcion: newNotaForm.descripcion,
-      fecha: new Date().toISOString().split('T')[0], // Obtiene la fecha actual en formato YYYY-MM-DD
-      archivada: false,
-      enlaces: [],
-      tareas: [],
-      createdAt: new Date().toISOString()
-    };
-
     try {
-      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'notas'), nuevaNota);
-      setIsModalOpen(false);
-      setNewNotaForm({ titulo: '', descripcion: '' });
-    } catch (error) { console.error("Error al crear nota:", error); }
+      await addDoc(collection(db, 'usuarios', auth.currentUser.uid, 'notas'), {
+        titulo: newNotaForm.titulo, descripcion: newNotaForm.descripcion,
+        fecha: new Date().toISOString().split('T')[0], archivada: false,
+        enlaces: [], tareas: [], createdAt: new Date().toISOString(),
+      });
+      setIsModalOpen(false); setNewNotaForm({ titulo: '', descripcion: '' });
+    } catch (error) { console.error('Error al crear nota:', error); }
   };
 
   const editarTituloNota = async (notaId, tituloActual) => {
     const nuevoTitulo = prompt('Editar título de la nota:', tituloActual);
-    if (nuevoTitulo !== null && nuevoTitulo.trim() !== '' && auth.currentUser) {
+    if (nuevoTitulo !== null && nuevoTitulo.trim() !== '' && auth.currentUser)
       await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { titulo: nuevoTitulo });
-    }
   };
 
   const toggleArchivarNota = async (notaId) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
+    if (nota && auth.currentUser)
       await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { archivada: !nota.archivada });
-    }
   };
 
   const eliminarNota = async (notaId) => {
-    if (auth.currentUser) {
-      await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId));
-    }
+    if (auth.currentUser) await deleteDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId));
   };
 
-  const updateNotaDescLocal = (notaId, text) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? { ...n, descripcion: text } : n));
-  };
-
+  const updateNotaDescLocal = (notaId, text) => setNotas(prev => prev.map(n => n.id === notaId ? { ...n, descripcion: text } : n));
   const saveNotaDesc = async (notaId, text) => {
-    if (auth.currentUser) {
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { descripcion: text });
-    }
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { descripcion: text });
   };
 
-  // --- Funciones para la manipulación de Enlaces ---
+  const setFechaEvento = async (notaId, fecha) => {
+    if (auth.currentUser) await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { fechaEvento: fecha || null });
+  };
+
   const agregarEnlace = async (notaId) => {
     const nota = notas.find(n => n.id === notaId);
     if (nota && auth.currentUser) {
@@ -83,56 +221,49 @@ const Notas = () => {
     }
   };
 
-  const updateEnlaceLocal = (notaId, enlaceId, field, value) => {
+  const updateEnlaceLocal = (notaId, enlaceId, field, value) =>
     setNotas(prev => prev.map(n => n.id === notaId ? { ...n, enlaces: n.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) } : n));
-  };
 
   const updateEnlace = async (notaId, enlaceId, field, value) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
-      const nuevosEnlaces = nota.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e);
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nuevosEnlaces });
-    }
+    if (nota && auth.currentUser)
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nota.enlaces.map(e => e.id === enlaceId ? { ...e, [field]: value } : e) });
   };
 
   const eliminarEnlace = async (notaId, enlaceId) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
-      const nuevosEnlaces = nota.enlaces.filter(e => e.id !== enlaceId);
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nuevosEnlaces });
-    }
+    if (nota && auth.currentUser)
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { enlaces: nota.enlaces.filter(e => e.id !== enlaceId) });
   };
 
-  // --- Funciones para la manipulación de Tareas (Checklist) ---
   const agregarTarea = async (notaId) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
-      const nuevasTareas = [...nota.tareas, { id: Date.now(), texto: '', completada: false }];
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
-    }
+    if (nota && auth.currentUser)
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: [...nota.tareas, { id: Date.now(), texto: '', completada: false }] });
   };
 
   const toggleTarea = async (notaId, tareaId) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
-      const nuevasTareas = nota.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t);
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
-    }
+    if (nota && auth.currentUser)
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nota.tareas.map(t => t.id === tareaId ? { ...t, completada: !t.completada } : t) });
   };
 
-  const updateTareaTextoLocal = (notaId, tareaId, texto) => {
-    setNotas(prev => prev.map(n => n.id === notaId ? {
-      ...n,
-      tareas: n.tareas.map(t => t.id === tareaId ? { ...t, texto } : t)
-    } : n));
-  };
+  const updateTareaTextoLocal = (notaId, tareaId, texto) =>
+    setNotas(prev => prev.map(n => n.id === notaId ? { ...n, tareas: n.tareas.map(t => t.id === tareaId ? { ...t, texto } : t) } : n));
 
   const saveTareaTexto = async (notaId, tareaId, texto) => {
     const nota = notas.find(n => n.id === notaId);
-    if (nota && auth.currentUser) {
-      const nuevasTareas = nota.tareas.map(t => t.id === tareaId ? { ...t, texto } : t);
-      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nuevasTareas });
-    }
+    if (nota && auth.currentUser)
+      await updateDoc(doc(db, 'usuarios', auth.currentUser.uid, 'notas', notaId), { tareas: nota.tareas.map(t => t.id === tareaId ? { ...t, texto } : t) });
+  };
+
+  const handleCrearEventoTarea = async () => {
+    if (!tareaEventoModal?.titulo || !tareaEventoModal?.fecha) return;
+    setCrearEventoLoading(true); setCrearEventoError('');
+    const result = await crearEvento(tareaEventoModal.titulo, tareaEventoModal.fecha);
+    setCrearEventoLoading(false);
+    if (result.ok) setTareaEventoModal(null);
+    else setCrearEventoError(result.error);
   };
 
   const notasActivas = notas.filter(n => !n.archivada);
@@ -152,14 +283,14 @@ const Notas = () => {
         {notasActivas.map(nota => {
           const totalTareas = nota.tareas.length;
           const tareasCompletadas = nota.tareas.filter(t => t.completada).length;
+          const fechaIndicador = nota.fechaEvento || nota.fecha;
+          const eventosIndicador = (eventosPorDia[fechaIndicador] || []).slice(0, 3);
 
           return (
             <div key={nota.id} className="proyecto-card">
               <div className="proyecto-card-main-info" style={{ gap: '0.5rem' }}>
                 <div className="proyecto-card-header" style={{ alignItems: 'center' }}>
-                  <div className="sub-categoria-header-title">
-                    <h3>{nota.titulo}</h3>
-                  </div>
+                  <div className="sub-categoria-header-title"><h3>{nota.titulo}</h3></div>
                   <div className="link-actions">
                     <button className="btn-icon-action" title="Editar Título" onClick={() => editarTituloNota(nota.id, nota.titulo)}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -172,19 +303,39 @@ const Notas = () => {
                     </button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem' }}>
+
+                {/* Fecha + indicadores de eventos */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
                   <span className="proyecto-fecha">📅 {nota.fecha}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {(nota.enlaces || []).filter(e => e.guardado).map(enlace => (
-                      <a key={enlace.id} href={enlace.url} target="_blank" rel="noopener noreferrer" className="header-link-icon" title={enlace.titulo} onClick={e => e.stopPropagation()}>📎</a>
-                    ))}
-                  </div>
+                  {(nota.enlaces || []).filter(e => e.guardado).map(enlace => (
+                    <a key={enlace.id} href={enlace.url} target="_blank" rel="noopener noreferrer" className="header-link-icon" title={enlace.titulo} onClick={e => e.stopPropagation()}>📎</a>
+                  ))}
+                  {token && eventosIndicador.length > 0 && (
+                    <div className="nota-eventos-indicador">
+                      {eventosIndicador.map((ev, i) => (
+                        <span key={i} className="nota-evento-dot" style={{ backgroundColor: getEventColor(ev) }} title={ev.summary} />
+                      ))}
+                    </div>
+                  )}
                 </div>
+
+                {/* Fecha de evento vinculada */}
+                {token && (
+                  <div className="nota-fecha-evento">
+                    <label className="nota-fecha-evento-label">🗓 Evento:</label>
+                    <input
+                      type="date"
+                      className="nota-fecha-evento-input"
+                      value={nota.fechaEvento || ''}
+                      onChange={e => setFechaEvento(nota.id, e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
-              
+
               <div className="sub-categoria-content" style={{ marginTop: 0 }}>
-                <textarea 
-                  className="sub-categoria-textarea" 
+                <textarea
+                  className="sub-categoria-textarea"
                   value={nota.descripcion}
                   onChange={(e) => updateNotaDescLocal(nota.id, e.target.value)}
                   onBlur={(e) => saveNotaDesc(nota.id, e.target.value)}
@@ -198,15 +349,24 @@ const Notas = () => {
                       <li key={tarea.id} className="tarea-item">
                         <label className="tarea-label">
                           <input type="checkbox" checked={tarea.completada} onChange={() => toggleTarea(nota.id, tarea.id)} />
-                          <input 
-                            type="text" 
-                            className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`} 
-                            value={tarea.texto} 
-                            placeholder="Escribe una tarea..." 
-                            onChange={(e) => updateTareaTextoLocal(nota.id, tarea.id, e.target.value)} 
+                          <input
+                            type="text"
+                            className={`tarea-texto-input ${tarea.completada ? 'completada' : ''}`}
+                            value={tarea.texto}
+                            placeholder="Escribe una tarea..."
+                            onChange={(e) => updateTareaTextoLocal(nota.id, tarea.id, e.target.value)}
                             onBlur={(e) => saveTareaTexto(nota.id, tarea.id, e.target.value)}
                           />
                         </label>
+                        {token && tarea.texto && (
+                          <button
+                            className="btn-tarea-calendar"
+                            title="Crear evento en Google Calendar"
+                            onClick={() => setTareaEventoModal({ titulo: tarea.texto, fecha: getTodayStr() })}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -218,38 +378,17 @@ const Notas = () => {
                     !enlace.guardado ? (
                       <div key={enlace.id} className="link-editor-container">
                         <div className="link-inputs-row">
-                          <input 
-                            type="text" 
-                            className="link-input-modern" 
-                            placeholder="Título del enlace..." 
-                            value={enlace.titulo} 
-                            onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'titulo', e.target.value)}
-                          />
-                          <input 
-                            type="url" 
-                            className="link-input-modern" 
-                            placeholder="https://..." 
-                            value={enlace.url} 
-                            onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'url', e.target.value)}
-                          />
+                          <input type="text" className="link-input-modern" placeholder="Título del enlace..." value={enlace.titulo} onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'titulo', e.target.value)} />
+                          <input type="url" className="link-input-modern" placeholder="https://..." value={enlace.url} onChange={(e) => updateEnlaceLocal(nota.id, enlace.id, 'url', e.target.value)} />
                         </div>
                         <div className="link-actions" style={{ justifyContent: 'flex-end', marginTop: '0.5rem' }}>
                           <button className="btn-delete-link" onClick={() => eliminarEnlace(nota.id, enlace.id)}>Cancelar</button>
-                          <button className="btn-save-link" onClick={() => {
-                              if(enlace.url && enlace.titulo) updateEnlace(nota.id, enlace.id, 'guardado', true);
-                              else alert('Ingresa título y URL.');
-                          }}>Guardar</button>
+                          <button className="btn-save-link" onClick={() => { if (enlace.url && enlace.titulo) updateEnlace(nota.id, enlace.id, 'guardado', true); else alert('Ingresa título y URL.'); }}>Guardar</button>
                         </div>
                       </div>
                     ) : (
                       <div key={enlace.id} className="link-saved-display">
-                        <a 
-                          href={enlace.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                        >
-                          📎 {enlace.titulo}
-                        </a>
+                        <a href={enlace.url} target="_blank" rel="noopener noreferrer">📎 {enlace.titulo}</a>
                         <div className="link-actions">
                           <button className="btn-edit-link" onClick={() => updateEnlace(nota.id, enlace.id, 'guardado', false)}>Editar</button>
                           <button className="btn-delete-link" onClick={() => eliminarEnlace(nota.id, enlace.id)}>Eliminar</button>
@@ -265,7 +404,27 @@ const Notas = () => {
         })}
       </div>
 
-      {/* Historial de Notas Archivadas */}
+      {/* ── Sección Google Calendar ─── */}
+      <section className="calendar-section">
+        <div className="calendar-section-header">
+          <h2>Mi Calendario</h2>
+          {token && <button className="btn-calendar-desconectar" onClick={desconectar}>Desconectar</button>}
+        </div>
+        {calError && <p className="calendar-error">{calError}</p>}
+        {!token ? (
+          <div className="calendar-empty-state">
+            <span className="calendar-empty-icon">🗓️</span>
+            <p>Conecta tu Google Calendar para ver tus eventos</p>
+            <button className="btn-conectar-calendar" onClick={conectar}>Conectar Google Calendar</button>
+          </div>
+        ) : cargando ? (
+          <p className="calendar-loading">Cargando eventos...</p>
+        ) : (
+          <CalendarGrid eventos={eventos} />
+        )}
+      </section>
+
+      {/* ── Historial de Notas Archivadas ─── */}
       {notasArchivadas.length > 0 && (
         <div className="archived-notes-section" style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px dashed rgba(255, 255, 255, 0.1)' }}>
           <div className="proyectos-header">
@@ -273,14 +432,7 @@ const Notas = () => {
           </div>
           <div className="archived-table-wrapper">
             <table className="archived-table">
-              <thead>
-                <tr>
-                  <th>Título de la Nota</th>
-                  <th>Fecha</th>
-                  <th>Tareas</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Título de la Nota</th><th>Fecha</th><th>Tareas</th><th>Acciones</th></tr></thead>
               <tbody>
                 {notasArchivadas.map(nota => {
                   const totalTareas = nota.tareas.length;
@@ -309,7 +461,7 @@ const Notas = () => {
         </div>
       )}
 
-      {/* Ventana Modal para Nueva Nota */}
+      {/* ── Modal Nueva Nota ─── */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -327,6 +479,40 @@ const Notas = () => {
             <div className="modal-actions">
               <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
               <button className="btn-primary" onClick={handleCreateNota}>Guardar Nota</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Crear Evento desde Tarea ─── */}
+      {tareaEventoModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Crear evento en Google Calendar</h2>
+            <div className="modal-form">
+              <div className="input-group">
+                <label>Título del evento</label>
+                <input
+                  type="text"
+                  value={tareaEventoModal.titulo}
+                  onChange={e => setTareaEventoModal({ ...tareaEventoModal, titulo: e.target.value })}
+                />
+              </div>
+              <div className="input-group">
+                <label>Fecha</label>
+                <input
+                  type="date"
+                  value={tareaEventoModal.fecha}
+                  onChange={e => setTareaEventoModal({ ...tareaEventoModal, fecha: e.target.value })}
+                />
+              </div>
+              {crearEventoError && <p className="calendar-error" style={{ margin: 0 }}>{crearEventoError}</p>}
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => { setTareaEventoModal(null); setCrearEventoError(''); }}>Cancelar</button>
+              <button className="btn-primary" onClick={handleCrearEventoTarea} disabled={crearEventoLoading}>
+                {crearEventoLoading ? 'Creando...' : 'Crear evento'}
+              </button>
             </div>
           </div>
         </div>

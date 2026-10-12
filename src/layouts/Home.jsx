@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { doc, onSnapshot, setDoc, updateDoc, collection, query } from 'firebase/firestore';
+import { useGoogleCalendar, getEventColor } from '../hooks/useGoogleCalendar';
 import './Proyectos.css';
 import './Finanzas.css';
 import './Home.css';
-import './Fitness.css'; // Importamos para utilizar el diseño animado de la racha
+import './Fitness.css';
 
 // --- DATOS SIMULADOS PARA EL DASHBOARD ---
 const mockActivityGraph = Array.from({ length: 53 * 7 }).map(() => {
@@ -12,6 +13,7 @@ const mockActivityGraph = Array.from({ length: 53 * 7 }).map(() => {
 });
 
 const Home = ({ userName }) => {
+  const { token, eventos } = useGoogleCalendar();
   // --- SALUDO DINÁMICO ---
   const [greeting] = useState(() => {
     const hour = new Date().getHours();
@@ -410,6 +412,32 @@ const Home = ({ userName }) => {
               </ul>
             </div>
           </div>
+
+          {/* Eventos de Hoy */}
+          {token && (() => {
+            const eventosHoy = eventos.filter(ev => (ev.start?.date || ev.start?.dateTime?.split('T')[0]) === todayStr)
+              .sort((a, b) => (a.start?.dateTime || '') > (b.start?.dateTime || '') ? 1 : -1)
+              .slice(0, 5);
+            return (
+              <div className="dashboard-card">
+                <h3 className="dashboard-card-title">Hoy en Calendario</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {eventosHoy.length === 0 ? (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Sin eventos para hoy</p>
+                  ) : eventosHoy.map((ev, i) => {
+                    const color = getEventColor(ev);
+                    const hora = ev.start?.dateTime ? new Date(ev.start.dateTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : 'Todo el día';
+                    return (
+                      <div key={i} className="hoy-evento-item" style={{ borderLeftColor: color, backgroundColor: `${color}18` }}>
+                        <span className="hoy-evento-hora">{hora}</span>
+                        <span className="hoy-evento-titulo">{ev.summary}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Áreas de la Vida */}
           <div className="dashboard-card">
