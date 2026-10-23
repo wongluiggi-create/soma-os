@@ -80,7 +80,7 @@
 }
 
 .chart-line-stroke {
-  filter: drop-shadow(0px 4px 6px rgba(162, 146, 197, 0.4));
+  filter: drop-shadow(0px 2px 3px rgba(162, 146, 197, 0.15));
   animation: fadeUp 1s ease-out forwards;
   opacity: 0;
 }
@@ -180,9 +180,127 @@
 
 .habit-checkbox-wrapper:hover input ~ .habit-checkbox-custom { border-color: var(--soma-yellow); }
 .habit-checkbox-wrapper input:checked ~ .habit-checkbox-custom {
-  background-color: var(--soma-yellow); border-color: var(--soma-yellow); box-shadow: 0 0 18px rgba(253, 200, 21, 0.5);
+  background-color: var(--soma-yellow); border-color: var(--soma-yellow); box-shadow: 0 0 12px rgba(253, 200, 21, 0.35);
 }
 .habit-checkbox-wrapper input:checked ~ .habit-checkbox-custom:after {
   content: "✓"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--bg-main); font-size: 20px; font-weight: 800;
 }
+
+/* ── Resumen semanal ─────────────────────────── */
+.habitos-weekly-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.weekly-summary-label { font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.weekly-summary-count { font-size: 0.85rem; color: var(--text-primary); font-weight: 600; white-space: nowrap; }
+.weekly-summary-bar { flex: 1; min-width: 80px; height: 5px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
+.weekly-summary-fill { height: 100%; background: var(--soma-purple); border-radius: 3px; transition: width 0.5s ease; }
+.weekly-summary-pct { font-size: 0.82rem; color: var(--soma-purple); font-weight: 600; white-space: nowrap; }
+
+/* ── Habit row layout ────────────────────────── */
+.habit-info-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+.habit-emoji { font-size: 1.3rem; line-height: 1; flex-shrink: 0; margin-top: 3px; }
+.habit-info-text { flex: 1; min-width: 0; }
+.habit-meta-row { margin-top: 0.15rem; }
+.habit-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
+.habit-streak-badge {
+  font-size: 0.72rem; color: var(--soma-orange);
+  background: rgba(240,127,18,0.1); border: 1px solid rgba(240,127,18,0.2);
+  border-radius: 4px; padding: 0.1rem 0.4rem; white-space: nowrap;
+}
+.habit-freq-badge {
+  font-size: 0.72rem; color: var(--soma-purple);
+  background: rgba(162,146,197,0.1); border: 1px solid rgba(162,146,197,0.2);
+  border-radius: 4px; padding: 0.1rem 0.4rem; white-space: nowrap;
+}
+
+/* ── Confirm delete ──────────────────────────── */
+.confirm-delete-inline { display: flex; align-items: center; gap: 0.3rem; background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.25); border-radius: 6px; padding: 0.2rem 0.5rem; flex-shrink: 0; }
+.confirm-delete-inline span { font-size: 0.75rem; color: #ff8080; white-space: nowrap; }
+.btn-confirm-yes { background: rgba(255,80,80,0.25); border: none; color: #ff8080; font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; cursor: pointer; }
+.btn-confirm-yes:hover { background: rgba(255,80,80,0.45); }
+.btn-confirm-no { background: rgba(255,255,255,0.08); border: none; color: var(--text-secondary); font-size: 0.75rem; padding: 0.15rem 0.4rem; border-radius: 4px; cursor: pointer; }
+.btn-confirm-no:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Eje Y del gráfico ───────────────────────── */
+.chart-y-label { font-size: 8px; fill: var(--text-secondary); opacity: 0.5; }
+
+/* ── Emoji picker ────────────────────────────── */
+.habit-emoji-picker { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.habit-emoji-btn {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px; padding: 0.3rem 0.45rem; font-size: 1.05rem; cursor: pointer; transition: all 0.15s; line-height: 1;
+}
+.habit-emoji-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+.habit-emoji-btn.selected { background: rgba(162,146,197,0.15); border-color: var(--soma-purple); }
+
+/* ── Color picker ────────────────────────────── */
+.habit-color-picker { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.habit-color-btn {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: transform 0.15s, border-color 0.15s; padding: 0;
+}
+.habit-color-btn:hover { transform: scale(1.15); }
+.habit-color-btn.selected { border-color: #fff; transform: scale(1.15); }
+
+/* ── Frecuencia objetivo ─────────────────────── */
+.habit-freq-options { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.btn-freq-option {
+  background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary);
+  padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.78rem; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.btn-freq-option:hover { border-color: rgba(255,255,255,0.25); color: var(--text-primary); }
+.btn-freq-option.active { border-color: var(--soma-purple); color: var(--soma-purple); background: rgba(162,146,197,0.08); }
+
+/* ── Filtro del gráfico ──────────────────────── */
+.chart-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+.btn-chart-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary);
+  padding: 0.28rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn-chart-filter:hover { border-color: rgba(255,255,255,0.25); color: var(--text-primary); }
+.btn-chart-filter.active {
+  border-color: var(--soma-purple);
+  color: var(--soma-purple);
+  background: rgba(162,146,197,0.08);
+}
+
+/* ── Stats del hábito seleccionado ────────────── */
+.chart-habit-stats {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(255,255,255,0.07);
+  flex-wrap: wrap;
+}
+.chart-stat-item { display: flex; flex-direction: column; gap: 0.15rem; }
+.chart-stat-value { font-size: 1.2rem; font-weight: 700; color: var(--text-primary); }
+.chart-stat-label { font-size: 0.72rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
 
